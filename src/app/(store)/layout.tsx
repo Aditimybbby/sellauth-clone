@@ -3,7 +3,7 @@ import { runMigrations } from '@/lib/db/migrate';
 import { settings } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import Link from 'next/link';
-import { Store, User } from 'lucide-react';
+import { Store } from 'lucide-react';
 import { CartDrawer } from '@/components/cart-drawer';
 
 try { await runMigrations(); } catch {}
@@ -17,37 +17,67 @@ async function getSetting(key: string, defaultValue: string = '') {
 
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
   const storeName = await getSetting('store_name', 'Prime Store');
-  const announcement = await getSetting('announcement', 'Welcome to our premium storefront!');
+  const announcement = await getSetting('announcement', '');
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#000000] text-white">
+    <div className="flex-wrapper bg-[#000000] text-white min-h-screen">
       {announcement && (
-        <div className="bg-primary/10 text-primary border-b border-primary/20 text-center py-2.5 px-4 text-xs font-bold uppercase tracking-widest backdrop-blur-md">
-          {announcement}
+        <div className="announcement">
+          <span>{announcement}</span>
         </div>
       )}
-      <header className="border-b border-white/5 bg-[#0a0a0a]/80 backdrop-blur-xl sticky top-0 z-40 transition-all duration-300">
-        <div className="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 font-extrabold text-xl tracking-tight text-white hover:text-white/80 transition-colors">
-            <Store className="h-7 w-7 text-primary" />
-            {storeName}
-          </Link>
-          
-          <nav className="flex items-center gap-6">
-            <Link href="/customer" className="flex items-center gap-2 text-sm font-semibold text-white/60 hover:text-white transition-colors">
-              <User className="w-4 h-4" />
-              <span>Portal</span>
-            </Link>
-            <div className="w-px h-5 bg-white/10"></div>
-            <CartDrawer />
-          </nav>
+      <nav className="navbar navbar-expand-lg component" data-component-id="navbar">
+        <div className="container">
+          <div className="navbar-inner navbar-reveal">
+            
+            <div className="d-flex justify-content-between align-items-center w-100 d-lg-none">
+              <Link className="navbar-brand fw-bold" href="/">
+                <Store className="h-7 w-7 text-white" />
+                <span className="ms-2">{storeName}</span>
+              </Link>
+              <div className="d-flex align-items-center gap-2">
+                <div className="cart">
+                  <CartDrawer />
+                </div>
+              </div>
+            </div>
+
+            <div className="collapse navbar-collapse justify-content-center d-none d-lg-flex" id="navbarSupportedContent">
+              <Link className="navbar-brand fw-bold" href="/">
+                <Store className="h-7 w-7 text-white" />
+                <span className="ms-2">{storeName}</span>
+              </Link>
+
+              <ul className="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-4">
+                <li className="nav-item">
+                  <Link className="nav-link" href="/">Home</Link>
+                </li>
+              </ul>
+              
+              <ul className="navbar-nav gap-2 align-items-lg-center ms-lg-auto">
+                <li className="nav-separator d-none d-lg-block"></li>
+                <li className="nav-item user">
+                  <Link href="/customer" className="btn btn-outline-primary">My Account</Link>
+                </li>
+                <li className="nav-item cart d-none d-lg-block">
+                  <CartDrawer />
+                </li>
+              </ul>
+            </div>
+          </div>
         </div>
-      </header>
-      <main className="flex-1 max-w-6xl mx-auto px-6 py-8 w-full">
+      </nav>
+      
+      <main className="flex-1 w-100">
         {children}
       </main>
-      <footer className="border-t border-white/5 py-8 text-center text-sm font-medium text-white/30 bg-[#050505]">
-        &copy; {new Date().getFullYear()} {storeName}. Powered by SellAuth Clone.
+
+      <footer className="footer py-5 mt-auto bg-[#0a0a0a] border-t border-white/10">
+        <div className="container text-center">
+          <p className="text-white/50 text-sm mb-0">
+            &copy; {new Date().getFullYear()} {storeName}. All rights reserved.
+          </p>
+        </div>
       </footer>
     </div>
   );
