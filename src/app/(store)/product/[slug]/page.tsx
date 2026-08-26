@@ -1,4 +1,3 @@
-
 import { db } from '@/lib/db';
 import { products } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
@@ -41,7 +40,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         <ChevronRight className="w-4 h-4" />
         {product.category && (
           <>
-            <Link href={/?category=\} className="hover:text-white transition-colors">{product.category.name}</Link>
+            <Link href={`/?category=${product.category.slug}`} className="hover:text-white transition-colors">{product.category.name}</Link>
             <ChevronRight className="w-4 h-4" />
           </>
         )}
@@ -87,7 +86,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             <div className="flex items-center gap-4 mb-8 pb-8 border-b border-white/5">
               <div className="flex gap-1 text-primary">
                 {[1, 2, 3, 4, 5].map((star) => (
-                  <Star key={star} className={w-5 h-5 \} />
+                  <Star key={star} className={`w-5 h-5 ${star <= Math.round(avgRating) ? 'fill-current' : 'text-white/10 fill-transparent'}`} />
                 ))}
               </div>
               <span className="text-white/40 text-sm font-semibold">{product.reviews.length} reviews</span>
@@ -96,7 +95,8 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             <div className="mb-8">
               <div className="text-sm font-bold text-white/40 uppercase tracking-widest mb-2">Price</div>
               <div className="text-5xl font-black text-white flex items-center gap-4">
-                              </div>
+                ${product.price.toFixed(2)}
+              </div>
             </div>
 
             <div className="space-y-4 mb-8">
@@ -108,7 +108,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                     In Stock
                   </span>
                 ) : inStock ? (
-                  <span className={lex items-center gap-2 font-bold px-3 py-1.5 rounded-lg border \}>
+                  <span className={`flex items-center gap-2 font-bold px-3 py-1.5 rounded-lg border ${product.stock <= 5 ? 'text-amber-400 bg-amber-400/10 border-amber-400/20' : 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20'}`}>
                     {product.stock <= 5 ? <AlertCircle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
                     {product.stock} In Stock
                   </span>
@@ -152,7 +152,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                   <div className="font-bold text-white">{review.customerEmail.split('@')[0]}***</div>
                   <div className="flex text-primary">
                     {[1, 2, 3, 4, 5].map((star) => (
-                      <Star key={star} className={w-4 h-4 \} />
+                      <Star key={star} className={`w-4 h-4 ${star <= review.rating ? 'fill-current' : 'text-white/10 fill-transparent'}`} />
                     ))}
                   </div>
                 </div>

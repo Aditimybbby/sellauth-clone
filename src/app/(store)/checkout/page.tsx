@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -35,7 +34,7 @@ export default function CheckoutPage() {
       if (productId) {
         setLoading(true);
         try {
-          const res = await fetch(/api/products/\);
+          const res = await fetch(`/api/products/${productId}`);
           if (res.ok) {
             const prod = await res.json();
             cart.clearCart();
@@ -110,7 +109,7 @@ export default function CheckoutPage() {
       }
 
       cart.clearCart();
-      router.push(/invoice/\);
+      router.push(`/invoice/${data.invoiceId}`);
     } catch (err: any) {
       setError(err.message || 'Failed to create invoice. Please try again.');
       setSubmitting(false);
@@ -167,26 +166,26 @@ export default function CheckoutPage() {
                     <div className="font-semibold text-white/90">{item.name}</div>
                     <div className="text-sm text-white/40">Qty: {item.quantity}</div>
                   </div>
-                  <div className="font-bold text-white">\</div>
+                  <div className="font-bold text-white">${(item.price * item.quantity).toFixed(2)}</div>
                 </div>
               ))}
             </div>
 
             <div className="flex justify-between mb-2 text-white/60 font-medium">
               <span>Subtotal</span>
-              <span>\</span>
+              <span>${subtotal.toFixed(2)}</span>
             </div>
 
             {discount && (
               <div className="flex justify-between mb-2 text-emerald-400 font-medium">
                 <span>Discount</span>
-                <span>-{discount.type === 'PERCENTAGE' ? \% : \$\}</span>
+                <span>-{discount.type === 'PERCENTAGE' ? `${discount.value}%` : `$${discount.value}`}</span>
               </div>
             )}
 
             <div className="flex justify-between mt-6 pt-6 border-t border-white/10 text-2xl font-black text-white">
               <span>Total</span>
-              <span>\</span>
+              <span>${total.toFixed(2)}</span>
             </div>
           </div>
 
@@ -237,7 +236,7 @@ export default function CheckoutPage() {
                   <button
                     type="button"
                     onClick={() => setCoin('TEST')}
-                    className={lex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all \}
+                    className={`flex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all ${coin === 'TEST' ? 'border-primary bg-primary/10 text-primary' : 'border-white/5 bg-[#141414] text-white/60 hover:bg-white/5'}`}
                   >
                     <CreditCard className="w-5 h-5" />
                     <span className="font-bold">Test Pay</span>
@@ -245,7 +244,7 @@ export default function CheckoutPage() {
                   <button
                     type="button"
                     onClick={() => setCoin('BTC')}
-                    className={lex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all \}
+                    className={`flex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all ${coin === 'BTC' ? 'border-[#F7931A] bg-[#F7931A]/10 text-[#F7931A]' : 'border-white/5 bg-[#141414] text-white/60 hover:bg-white/5'}`}
                   >
                     <Bitcoin className="w-5 h-5" />
                     <span className="font-bold">Bitcoin</span>
@@ -253,9 +252,9 @@ export default function CheckoutPage() {
                   <button
                     type="button"
                     onClick={() => setCoin('LTC')}
-                    className={lex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all \}
+                    className={`flex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all ${coin === 'LTC' ? 'border-[#345D9D] bg-[#345D9D]/10 text-[#345D9D]' : 'border-white/5 bg-[#141414] text-white/60 hover:bg-white/5'}`}
                   >
-                    <span className="font-bold">L</span>
+                    <span className="font-bold">Ł</span>
                     <span className="font-bold">Litecoin</span>
                   </button>
                 </div>
