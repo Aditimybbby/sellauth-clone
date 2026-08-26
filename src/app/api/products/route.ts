@@ -35,16 +35,21 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const slug = body.slug || body.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    
+    // Clean up empty strings for nullable relations
+    const insertData = { ...body, slug };
+    if (!insertData.categoryId) delete insertData.categoryId;
+    if (!insertData.imageUrl) delete insertData.imageUrl;
 
     const [newProduct] = await db.insert(products).values({
-      ...body,
-      slug,
+      ...insertData,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }).returning();
 
     return NextResponse.json(newProduct, { status: 201 });
   } catch (error) {
+    console.error('Failed to create product:', error);
     return NextResponse.json({ error: 'Failed to create product' }, { status: 500 });
   }
 }
