@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Bitcoin, Loader2, ArrowRight, ShieldCheck, Tag } from 'lucide-react';
+import { Bitcoin, Loader2, ArrowRight, ShieldCheck, Tag, CreditCard } from 'lucide-react';
 import { useCartStore } from '@/lib/cart-store';
 
 export default function CheckoutPage() {
@@ -17,7 +17,7 @@ export default function CheckoutPage() {
   const [mounted, setMounted] = useState(false);
   
   const [email, setEmail] = useState('');
-  const [coin, setCoin] = useState('BTC');
+  const [coin, setCoin] = useState('TEST');
   const [couponCode, setCouponCode] = useState('');
   const [discount, setDiscount] = useState<{ type: string, value: number } | null>(null);
   const [couponError, setCouponError] = useState('');
@@ -30,22 +30,26 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (!mounted) return;
 
-    const loadSingleProduct = async () => {
-      // If productId in URL, clear cart and add just this item
-      // In a real app we'd fetch the product details from the API
+    const loadDirectProduct = async () => {
       if (productId) {
         setLoading(true);
-        // Mock fetch
-        setTimeout(() => {
-          cart.clearCart();
-          cart.addItem({
-            id: productId,
-            name: 'Premium Product (Direct Buy)',
-            price: 19.99,
-            quantity: initialQuantity
-          });
+        try {
+          const res = await fetch("/api/products/" + productId);
+          if (res.ok) {
+            const prod = await res.json();
+            cart.clearCart();
+            cart.addItem({
+              id: prod.id,
+              name: prod.name,
+              price: prod.price,
+              quantity: initialQuantity
+            });
+          }
+        } catch (e) {
+          console.error(e);
+        } finally {
           setLoading(false);
-        }, 500);
+        }
       } else {
         setLoading(false);
         if (cart.items.length === 0) {
@@ -54,21 +58,28 @@ export default function CheckoutPage() {
       }
     };
     
-    loadSingleProduct();
+    loadDirectProduct();
   }, [productId, mounted]);
 
   const validateCoupon = async () => {
     if (!couponCode) return;
     setCouponError('');
-    // Mock coupon validation
-    setTimeout(() => {
-      if (couponCode === 'SAVE20') {
-        setDiscount({ type: 'PERCENT', value: 20 });
+    try {
+      const res = await fetch('/api/coupons/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: couponCode, items: cart.items.map(i => ({ productId: i.id, quantity: i.quantity })) })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setDiscount({ type: data.discountType, value: data.discountValue });
       } else {
-        setCouponError('Invalid coupon code');
+        setCouponError(data.error || 'Invalid coupon');
         setDiscount(null);
       }
-    }, 300);
+    } catch {
+      setCouponError('Error validating coupon');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -78,15 +89,29 @@ export default function CheckoutPage() {
     setSubmitting(true);
     setError('');
 
-    // Mock API call to create invoice
     try {
-      // In a real scenario we'd send the entire cart: { items: cart.items, email, coin, couponCode }
-      setTimeout(() => {
-        cart.clearCart();
-        router.push(`/invoice/inv_mock_${Date.now()}`);
-      }, 1500);
-    } catch (err) {
-      setError('Failed to create invoice. Please try again.');
+      const payload = {
+        items: cart.items.map(item => ({ productId: item.id, quantity: item.quantity })),
+        email,
+        coin,
+        couponCode: couponCode && discount ? couponCode : undefined
+      };
+
+      const res = await fetch('/api/invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to create invoice');
+      }
+
+      cart.clearCart();
+      router.push(/invoice/ + data.invoiceId);
+    } catch (err: any) {
+      setError(err.message || 'Failed to create invoice. Please try again.');
       setSubmitting(false);
     }
   };
@@ -101,7 +126,7 @@ export default function CheckoutPage() {
 
   if (cart.items.length === 0) {
     return (
-      <div className="text-center py-20">
+      <div className="text-center py-20 text-white">
         <h2 className="text-2xl font-bold mb-4">Your cart is empty</h2>
         <button onClick={() => router.push('/')} className="text-primary hover:underline">
           Go back to store
@@ -110,156 +135,161 @@ export default function CheckoutPage() {
     );
   }
 
-  const subtotal = cart.total();
+  const subtotal = cart.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   let total = subtotal;
   if (discount) {
-    if (discount.type === 'PERCENT') total = subtotal * (1 - discount.value / 100);
-    else if (discount.type === 'FIXED') total = Math.max(0, subtotal - discount.value);
+    if (discount.type === 'PERCENTAGE') {
+      total = subtotal - (subtotal * (discount.value / 100));
+    } else {
+      total = Math.max(0, subtotal - discount.value);
+    }
   }
 
   return (
-    <div className="max-w-5xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-extrabold tracking-tight">Checkout</h1>
-        <p className="text-muted-foreground mt-2">Complete your purchase securely.</p>
-      </div>
+    <div className="max-w-4xl mx-auto py-10">
+      <h1 className="text-4xl font-extrabold mb-10 text-white tracking-tight">Checkout</h1>
 
-      <div className="grid md:grid-cols-[1.5fr,1fr] gap-8">
-        {/* Left Column - Form */}
-        <div className="space-y-6">
-          <form id="checkout-form" onSubmit={handleSubmit} className="space-y-6">
-            <div className="bg-card border rounded-2xl p-6 shadow-sm">
-              <h2 className="text-xl font-bold mb-4">Contact Information</h2>
-              <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium">Email Address *</label>
-                <input
-                  type="email"
-                  id="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  className="w-full bg-background border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-shadow"
-                />
-                <p className="text-xs text-muted-foreground mt-1">Your product will be sent to this email.</p>
-              </div>
-            </div>
-
-            <div className="bg-card border rounded-2xl p-6 shadow-sm">
-              <h2 className="text-xl font-bold mb-4">Payment Method</h2>
-              <div className="grid grid-cols-2 gap-4">
-                <label className={`border-2 rounded-xl p-4 cursor-pointer transition-all ${coin === 'BTC' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}>
-                  <div className="flex items-center gap-3">
-                    <input type="radio" name="coin" value="BTC" checked={coin === 'BTC'} onChange={(e) => setCoin(e.target.value)} className="sr-only" />
-                    <div className="w-10 h-10 rounded-full bg-[#F7931A]/20 flex items-center justify-center">
-                      <Bitcoin className="w-6 h-6 text-[#F7931A]" />
-                    </div>
-                    <div className="font-bold">Bitcoin</div>
-                  </div>
-                </label>
-                <label className={`border-2 rounded-xl p-4 cursor-pointer transition-all ${coin === 'LTC' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}>
-                  <div className="flex items-center gap-3">
-                    <input type="radio" name="coin" value="LTC" checked={coin === 'LTC'} onChange={(e) => setCoin(e.target.value)} className="sr-only" />
-                    <div className="w-10 h-10 rounded-full bg-[#345D9D]/20 flex items-center justify-center font-black text-[#345D9D]">
-                      Ł
-                    </div>
-                    <div className="font-bold">Litecoin</div>
-                  </div>
-                </label>
-              </div>
-            </div>
-            
-            {error && (
-              <div className="p-4 rounded-xl bg-destructive/10 text-destructive text-sm font-medium border border-destructive/20">
-                {error}
-              </div>
-            )}
-
-            <button 
-              type="submit"
-              disabled={submitting || !email}
-              className="w-full py-4 rounded-xl font-bold text-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2 group shadow-lg hover:shadow-primary/25"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  Pay with Crypto
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </>
-              )}
-            </button>
-            
-            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-              <ShieldCheck className="w-4 h-4 text-emerald-500" />
-              Secure, anonymous crypto payments
-            </div>
-          </form>
+      {error && (
+        <div className="mb-8 p-4 bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl font-medium">
+          {error}
         </div>
+      )}
 
-        {/* Right Column - Summary */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
         <div>
-          <div className="bg-card border rounded-2xl p-6 sticky top-24 shadow-sm">
-            <h2 className="text-xl font-bold mb-6">Order Summary</h2>
-            
-            <div className="space-y-4 mb-6 pb-6 border-b max-h-[300px] overflow-y-auto pr-2">
+          <div className="bg-[#0a0a0a] border border-white/5 p-8 rounded-3xl shadow-xl mb-8">
+            <h2 className="text-xl font-bold mb-6 text-white">Order Summary</h2>
+            <div className="space-y-4 mb-6">
               {cart.items.map(item => (
-                <div key={item.id} className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-lg bg-secondary flex items-center justify-center shrink-0">
-                    <Tag className="w-5 h-5 text-muted-foreground" />
-                  </div>
+                <div key={item.id} className="flex justify-between items-center pb-4 border-b border-white/5">
                   <div className="flex-1">
-                    <h3 className="font-bold leading-tight text-sm">{item.name}</h3>
-                    <div className="text-xs text-muted-foreground mt-1">Qty: {item.quantity} &times; ${item.price.toFixed(2)}</div>
+                    <div className="font-semibold text-white/90">{item.name}</div>
+                    <div className="text-sm text-white/40">Qty: {item.quantity}</div>
                   </div>
-                  <div className="font-bold text-sm">${(item.price * item.quantity).toFixed(2)}</div>
+                  <div className="font-bold text-white">${(item.price * item.quantity).toFixed(2)}</div>
                 </div>
               ))}
             </div>
 
-            <div className="space-y-4 mb-6 pb-6 border-b">
-              <div className="flex gap-2">
-                <input 
-                  type="text" 
-                  placeholder="Discount code" 
-                  value={couponCode}
-                  onChange={(e) => setCouponCode(e.target.value)}
-                  className="flex-1 bg-background border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-                <button 
-                  type="button"
-                  onClick={validateCoupon}
-                  className="px-4 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground text-sm font-medium rounded-lg transition-colors"
-                >
-                  Apply
-                </button>
-              </div>
-              {couponError && <p className="text-xs text-destructive">{couponError}</p>}
+            <div className="flex justify-between mb-2 text-white/60 font-medium">
+              <span>Subtotal</span>
+              <span>${subtotal.toFixed(2)}</span>
             </div>
 
-            <div className="space-y-3 mb-6">
-              <div className="flex justify-between text-muted-foreground">
-                <span>Subtotal</span>
-                <span>${subtotal.toFixed(2)}</span>
+            {discount && (
+              <div className="flex justify-between mb-2 text-emerald-400 font-medium">
+                <span>Discount</span>
+                <span>-{discount.type === 'PERCENTAGE' ? ${discount.value}${discount.value}% : $}</span>
               </div>
-              {discount && (
-                <div className="flex justify-between text-emerald-500 font-medium">
-                  <span>Discount</span>
-                  <span>-${(subtotal - total).toFixed(2)}</span>
+            )}
+
+            <div className="flex justify-between mt-6 pt-6 border-t border-white/10 text-2xl font-black text-white">
+              <span>Total</span>
+              <span>${total.toFixed(2)}</span>
+            </div>
+          </div>
+
+          <div className="bg-[#0a0a0a] border border-white/5 p-6 rounded-3xl shadow-xl">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                <input
+                  type="text"
+                  placeholder="Have a coupon code?"
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value)}
+                  className="w-full bg-[#141414] border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-primary/50 transition-colors"
+                />
+              </div>
+              <button 
+                type="button"
+                onClick={validateCoupon}
+                className="px-6 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl font-bold transition-colors"
+              >
+                Apply
+              </button>
+            </div>
+            {couponError && <p className="text-red-400 text-sm mt-3">{couponError}</p>}
+          </div>
+        </div>
+
+        <div>
+          <form onSubmit={handleSubmit} className="bg-[#0a0a0a] border border-white/5 p-8 rounded-3xl shadow-xl sticky top-24">
+            <h2 className="text-xl font-bold mb-6 text-white">Payment Details</h2>
+            
+            <div className="space-y-6">
+              <div>
+                <label className="block text-xs font-bold text-white/50 uppercase tracking-widest mb-3">Email Address</label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-[#141414] border border-white/10 rounded-xl p-4 text-white focus:outline-none focus:border-primary/50 transition-colors"
+                  placeholder="Where should we send your order?"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-white/50 uppercase tracking-widest mb-3">Payment Method</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setCoin('TEST')}
+                    className={lex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all }
+                  >
+                    <CreditCard className="w-5 h-5" />
+                    <span className="font-bold">Test Pay</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCoin('BTC')}
+                    className={lex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all }
+                  >
+                    <Bitcoin className="w-5 h-5" />
+                    <span className="font-bold">Bitcoin</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCoin('LTC')}
+                    className={lex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all }
+                  >
+                    <span className="font-bold">L</span>
+                    <span className="font-bold">Litecoin</span>
+                  </button>
                 </div>
-              )}
-              <div className="flex justify-between text-xl font-black pt-4 border-t">
-                <span>Total</span>
-                <span>${total.toFixed(2)}</span>
+              </div>
+
+              <div className="pt-4">
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full py-5 rounded-xl font-bold text-lg bg-primary text-white shadow-[0_0_20px_rgba(var(--primary),0.4)] hover:bg-primary/90 hover:shadow-[0_0_25px_rgba(var(--primary),0.6)] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      Complete Order
+                      <ArrowRight className="w-5 h-5" />
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div className="flex items-center justify-center gap-2 text-xs text-emerald-400/80 font-medium mt-4 bg-emerald-400/10 py-3 rounded-lg border border-emerald-400/20">
+                <ShieldCheck className="w-4 h-4" />
+                Secure, encrypted checkout
               </div>
             </div>
-            
-          </div>
+          </form>
         </div>
       </div>
     </div>
   );
 }
+
+

@@ -12,22 +12,13 @@ try { await runMigrations(); } catch {}
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { productId, quantity = 1, email, coin = 'btc', couponCode } = body;
+    const { items, email, coin = 'btc', couponCode } = body;
 
-    if (!productId || !email) {
-      return NextResponse.json({ error: 'productId and email are required' }, { status: 400 });
+    if (!items || items.length === 0 || !email) {
+      return NextResponse.json({ error: 'items and email are required' }, { status: 400 });
     }
 
-    // 1. Validate product
-    const product = await db.query.products.findFirst({
-      where: eq(products.id, productId),
-    });
-    if (!product) return NextResponse.json({ error: 'Product not found' }, { status: 404 });
-    if (product.stock < quantity && product.stock !== -1) {
-      return NextResponse.json({ error: 'Insufficient stock' }, { status: 400 });
-    }
-
-    // 2. Fraud checks
+    // 1. Fraud checks
     const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || '127.0.0.1';
     const blacklistCheck = await isBlacklisted(email, ip);
     if (blacklistCheck.blocked) {
@@ -37,12 +28,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Rate limit exceeded. Try again later.' }, { status: 429 });
     }
 
-    // 3. Calculate total
-    let totalAmount = product.price * quantity;
+    // 2. Validate products and calculate subtotal
+    let totalAmount = 0;
+    const validatedItems = [];
+    
+    for (const item of items) {
+      const product = await db.query.products.findFirst({
+        where: eq(products.id, item.productId),
+      });
+      if (!product) return NextResponse.json({ error: `Product ${item.productId} not found` }, { status: 404 });
+      if (product.stock < item.quantity && product.stock !== -1) {
+        return NextResponse.json({ error: `Insufficient stock for ${product.name}` }, { status: 400 });
+      }
+      
+      const itemTotal = product.price * item.quantity;
+      totalAmount += itemTotal;
+      validatedItems.push({ product, quantity: item.quantity, itemTotal });
+    }
+
     let discountAmount = 0;
     let couponId: string | null = null;
 
-    // 4. Validate coupon
+    // 3. Validate coupon
     if (couponCode) {
       const coupon = await db.query.coupons.findFirst({
         where: eq(coupons.code, couponCode),
@@ -50,7 +57,21 @@ export async function POST(req: NextRequest) {
       if (coupon && coupon.isActive) {
         if (!coupon.expiresAt || new Date(coupon.expiresAt) > new Date()) {
           if (!coupon.maxUses || coupon.usedCount < coupon.maxUses) {
-            if (!coupon.productId || coupon.productId === productId) {
+            // Apply coupon logic
+            if (coupon.productId) {
+              // Apply only to specific product
+              const eligibleItem = validatedItems.find(i => i.product.id === coupon.productId);
+              if (eligibleItem) {
+                if (coupon.discountType === 'PERCENTAGE') {
+                  discountAmount = eligibleItem.itemTotal * (coupon.discountValue / 100);
+                } else {
+                  discountAmount = Math.min(coupon.discountValue, eligibleItem.itemTotal);
+                }
+                couponId = coupon.id;
+                totalAmount -= discountAmount;
+              }
+            } else {
+              // Apply globally
               if (coupon.discountType === 'PERCENTAGE') {
                 discountAmount = totalAmount * (coupon.discountValue / 100);
               } else {
@@ -64,7 +85,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 5. Convert to crypto
+    // 4. Convert to crypto
     let cryptoAmount = '0';
     let rate = 0;
     try {
@@ -75,7 +96,7 @@ export async function POST(req: NextRequest) {
       cryptoAmount = (totalAmount / 65000).toFixed(8); // Fallback
     }
 
-    // 6. Get or create customer
+    // 5. Get or create customer
     let customer = await db.query.customers.findFirst({
       where: eq(customers.email, email),
     });
@@ -88,7 +109,7 @@ export async function POST(req: NextRequest) {
       customer = newCustomer;
     }
 
-    // 7. Create invoice
+    // 6. Create invoice
     const paymentAddress = process.env.CRYPTO_DESTINATION_ADDRESS || '';
     const expiresAt = new Date(Date.now() + 30 * 60000).toISOString();
 
@@ -107,18 +128,20 @@ export async function POST(req: NextRequest) {
       updatedAt: new Date().toISOString(),
     }).returning();
 
-    // 8. Create order
-    await db.insert(orders).values({
-      invoiceId: newInvoice.id,
-      productId: product.id,
-      customerId: customer.id,
-      quantity,
-      unitPrice: product.price,
-      totalPrice: totalAmount,
-      status: 'PENDING',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
+    // 7. Create orders
+    for (const item of validatedItems) {
+      await db.insert(orders).values({
+        invoiceId: newInvoice.id,
+        productId: item.product.id,
+        customerId: customer.id,
+        quantity: item.quantity,
+        unitPrice: item.product.price,
+        totalPrice: item.itemTotal,
+        status: 'PENDING',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    }
 
     return NextResponse.json({
       invoiceId: newInvoice.id,

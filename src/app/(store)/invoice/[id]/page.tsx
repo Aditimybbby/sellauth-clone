@@ -22,12 +22,14 @@ interface InvoiceData {
   orders?: Array<{
     product: { name: string; type: string };
     quantity: number;
+    deliveredContent?: string;
   }>;
 }
 
 export default function InvoicePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [invoice, setInvoice] = useState<InvoiceData | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState<'address' | 'amount' | 'keys' | null>(null);
@@ -36,11 +38,10 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
   const [reviewComment, setReviewComment] = useState('');
   const [showReview, setShowReview] = useState(false);
 
-  // Fetch invoice data
   useEffect(() => {
     async function fetchInvoice() {
       try {
-        const res = await fetch(`/api/invoices/${id}`);
+        const res = await fetch("/api/invoices/" + id);
         if (!res.ok) throw new Error('Invoice not found');
         const data = await res.json();
         setInvoice(data);
@@ -53,13 +54,12 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
     fetchInvoice();
   }, [id]);
 
-  // Poll for status updates
   useEffect(() => {
     if (!invoice || invoice.status === 'COMPLETED' || invoice.status === 'EXPIRED') return;
 
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`/api/invoices/${id}/status`);
+        const res = await fetch("/api/invoices/" + id + "/status");
         if (res.ok) {
           const data = await res.json();
           setInvoice(prev => prev ? { ...prev, ...data } : prev);
@@ -70,7 +70,6 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
     return () => clearInterval(interval);
   }, [id, invoice?.status]);
 
-  // Countdown timer
   useEffect(() => {
     if (!invoice?.expiresAt) return;
     const expiresAt = new Date(invoice.expiresAt).getTime();
@@ -78,12 +77,16 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
     const updateTimer = () => {
       const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
       setTimeLeft(remaining);
+
+      if (remaining === 0 && invoice.status === 'PENDING') {
+        setInvoice(prev => prev ? { ...prev, status: 'EXPIRED' } : prev);
+      }
     };
 
     updateTimer();
     const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
-  }, [invoice?.expiresAt]);
+  }, [invoice?.expiresAt, invoice?.status]);
 
   const copyToClipboard = async (text: string, type: 'address' | 'amount' | 'keys') => {
     await navigator.clipboard.writeText(text);
@@ -94,7 +97,7 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    return m.toString().padStart(2, '0') + ':' + s.toString().padStart(2, '0');
   };
 
   const submitReview = async () => {
@@ -114,6 +117,26 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
     } catch {}
   };
 
+  const handleMockPayment = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("/api/invoices/" + invoice?.id + "/simulate-payment", {
+        method: 'POST'
+      });
+      if (res.ok) {
+        setInvoice(prev => prev ? { ...prev, status: 'COMPLETED' } : prev);
+        const refetch = await fetch("/api/invoices/" + id);
+        if (refetch.ok) {
+            setInvoice(await refetch.json());
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
@@ -125,229 +148,151 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
   if (error || !invoice) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
-        <Card className="w-full max-w-md">
+        <Card className="w-full max-w-md bg-[#0a0a0a] border border-white/5">
           <CardContent className="pt-6 text-center">
-            <XCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Invoice Not Found</h2>
-            <p className="text-muted-foreground">This invoice doesn&apos;t exist or has been removed.</p>
+            <XCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-bold mb-2 text-white">Invoice Not Found</h2>
+            <p className="text-white/50 mb-6">This invoice may have expired or does not exist.</p>
+            <Button onClick={() => window.location.href = '/'} className="bg-primary hover:bg-primary/80">Return to Store</Button>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  const statusConfig = {
-    PENDING: { icon: Clock, color: 'text-amber-500', bg: 'bg-amber-500/10', label: 'Awaiting Payment', pulse: true },
-    DETECTED: { icon: Loader2, color: 'text-blue-500', bg: 'bg-blue-500/10', label: 'Payment Detected', pulse: false },
-    CONFIRMING: { icon: Loader2, color: 'text-blue-500', bg: 'bg-blue-500/10', label: `Confirming (${invoice.confirmations}/2)`, pulse: false },
-    COMPLETED: { icon: CheckCircle2, color: 'text-emerald-500', bg: 'bg-emerald-500/10', label: 'Payment Complete!', pulse: false },
-    EXPIRED: { icon: XCircle, color: 'text-red-500', bg: 'bg-red-500/10', label: 'Invoice Expired', pulse: false },
-    PARTIALLY_PAID: { icon: Clock, color: 'text-amber-500', bg: 'bg-amber-500/10', label: 'Partially Paid', pulse: true },
-  };
-
-  const currentStatus = statusConfig[invoice.status] || statusConfig.PENDING;
-  const StatusIcon = currentStatus.icon;
-
   return (
-    <div className="max-w-lg mx-auto space-y-6">
-      {/* Status Header */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="text-center space-y-4">
-            <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full ${currentStatus.bg}`}>
-              <StatusIcon className={`h-8 w-8 ${currentStatus.color} ${currentStatus.pulse ? 'animate-pulse' : ''} ${invoice.status === 'DETECTED' || invoice.status === 'CONFIRMING' ? 'animate-spin' : ''}`} />
-            </div>
-            <div>
-              <h1 className={`text-xl font-bold ${currentStatus.color}`}>{currentStatus.label}</h1>
-              <p className="text-sm text-muted-foreground mt-1">Invoice #{invoice.id.substring(0, 8)}...</p>
-            </div>
+    <div className="max-w-3xl mx-auto py-10">
+      <Card className="bg-[#0a0a0a] border-white/5 shadow-2xl overflow-hidden rounded-3xl">
+        <div className="h-1 bg-gradient-to-r from-primary/50 to-primary w-full"></div>
+        <CardHeader className="text-center pb-8 pt-10">
+          <CardTitle className="text-3xl font-extrabold text-white">
+            {invoice.status === 'COMPLETED' ? 'Payment Successful' : 
+             invoice.status === 'EXPIRED' ? 'Invoice Expired' : 
+             'Awaiting Payment'}
+          </CardTitle>
+          <p className="text-white/50 text-sm mt-2">
+            Invoice ID: <span className="font-mono text-white/70">{invoice.id}</span>
+          </p>
+        </CardHeader>
 
-            {/* Countdown */}
-            {(invoice.status === 'PENDING' || invoice.status === 'DETECTED') && timeLeft > 0 && (
-              <div className="flex items-center justify-center gap-2 text-muted-foreground">
-                <Clock className="h-4 w-4" />
-                <span className="font-mono text-lg">{formatTime(timeLeft)}</span>
-                <span className="text-sm">remaining</span>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Payment Section - shown when not completed/expired */}
-      {(invoice.status === 'PENDING' || invoice.status === 'DETECTED' || invoice.status === 'CONFIRMING') && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-center text-sm font-medium text-muted-foreground">
-              Send exactly this amount
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Amount */}
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-2">
-                <span className="text-3xl font-bold font-mono">{invoice.cryptoAmount}</span>
-                <Badge variant="secondary" className="uppercase">{invoice.cryptoCurrency}</Badge>
-              </div>
-              <p className="text-sm text-muted-foreground mt-1">${invoice.totalAmount.toFixed(2)} USD</p>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="mt-2"
-                onClick={() => copyToClipboard(invoice.cryptoAmount || '', 'amount')}
-              >
-                {copied === 'amount' ? <CheckCircle2 className="h-3 w-3 mr-1 text-emerald-500" /> : <Copy className="h-3 w-3 mr-1" />}
-                {copied === 'amount' ? 'Copied!' : 'Copy amount'}
-              </Button>
+        <CardContent className="space-y-8 px-10 pb-10">
+          {invoice.status === 'COMPLETED' ? (
+            <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 p-6 rounded-2xl flex flex-col items-center justify-center text-center">
+              <CheckCircle2 className="w-16 h-16 mb-4 text-emerald-400" />
+              <h3 className="text-xl font-bold mb-2">Thank You For Your Purchase!</h3>
+              <p className="text-emerald-400/80 font-medium">Your payment has been confirmed and your order is complete.</p>
             </div>
-
-            {/* QR Code Placeholder */}
-            <div className="flex justify-center">
-              <div className="w-48 h-48 bg-white rounded-lg flex items-center justify-center p-2">
-                <div className="w-full h-full bg-muted rounded flex items-center justify-center text-muted-foreground text-xs">
-                  QR Code
+          ) : invoice.status === 'EXPIRED' ? (
+            <div className="bg-red-500/10 border border-red-500/20 text-red-500 p-6 rounded-2xl flex flex-col items-center justify-center text-center">
+              <XCircle className="w-16 h-16 mb-4 text-red-400" />
+              <h3 className="text-xl font-bold mb-2">Invoice Expired</h3>
+              <p className="text-red-400/80">This invoice has expired. Please create a new order.</p>
+            </div>
+          ) : (
+            <div className="bg-[#141414] border border-white/10 p-8 rounded-3xl">
+              <div className="flex flex-col items-center text-center mb-8">
+                <div className="text-sm font-bold text-white/50 uppercase tracking-widest mb-3">Amount Due</div>
+                <div className="text-5xl font-black text-white flex items-center gap-3">
+                  {invoice.cryptoCurrency.toUpperCase() === 'TEST' ? $ + invoice.totalAmount.toFixed(2) : invoice.cryptoAmount +   + invoice.cryptoCurrency.toUpperCase()}
+                  {invoice.cryptoCurrency.toUpperCase() !== 'TEST' && (
+                    <button onClick={() => copyToClipboard(invoice.cryptoAmount, 'amount')} className="p-2 hover:bg-white/10 rounded-xl transition-colors">
+                      <Copy className="w-5 h-5 text-white/40 hover:text-white" />
+                    </button>
+                  )}
                 </div>
+                {copied === 'amount' && <span className="text-xs text-primary mt-2 font-bold">Copied!</span>}
               </div>
-            </div>
 
-            {/* Address */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground text-center block">
-                Payment Address
-              </label>
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-accent/50 border">
-                <code className="flex-1 text-xs break-all font-mono">{invoice.paymentAddress}</code>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="shrink-0"
-                  onClick={() => copyToClipboard(invoice.paymentAddress || '', 'address')}
-                >
-                  {copied === 'address' ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Delivery Section - shown when completed */}
-      {invoice.status === 'COMPLETED' && invoice.deliveredContent && (
-        <Card className="border-emerald-500/30">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-              Your Order
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {invoice.orders?.[0]?.product?.type === 'FILE' ? (
-              <Button className="w-full" asChild>
-                <a href={invoice.deliveredContent} download>
-                  <Download className="h-4 w-4 mr-2" />
-                  Download File
-                </a>
-              </Button>
-            ) : invoice.orders?.[0]?.product?.type === 'SERVICE' ? (
-              <div className="p-4 rounded-lg bg-accent/50 text-center">
-                <p className="text-sm text-muted-foreground">Your order is being processed. You&apos;ll receive an email when it&apos;s ready.</p>
-              </div>
-            ) : (
-              <>
-                <div className="space-y-2">
-                  {invoice.deliveredContent.split('\n').map((key: string, i: number) => (
-                    <div key={i} className="flex items-center gap-2 p-3 rounded-lg bg-accent/50 border font-mono text-sm">
-                      <span className="flex-1 break-all">{key}</span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="shrink-0"
-                        onClick={() => copyToClipboard(key, 'keys')}
-                      >
-                        <Copy className="h-3 w-3" />
-                      </Button>
+              {invoice.cryptoCurrency.toUpperCase() === 'TEST' ? (
+                <div className="text-center space-y-4">
+                  <p className="text-white/60 mb-6">This is a mock payment for testing purposes.</p>
+                  <Button onClick={handleMockPayment} className="w-full py-6 rounded-xl font-bold text-lg bg-primary hover:bg-primary/90 text-white shadow-[0_0_20px_rgba(var(--primary),0.4)]">
+                    Simulate Payment
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div>
+                    <label className="text-xs font-bold text-white/50 uppercase tracking-widest block mb-3 text-center">Send Payment To</label>
+                    <div className="flex items-center gap-2 bg-[#0a0a0a] p-4 rounded-xl border border-white/5">
+                      <code className="flex-1 text-sm text-center text-white break-all font-mono">
+                        {invoice.paymentAddress}
+                      </code>
+                      <button onClick={() => copyToClipboard(invoice.paymentAddress, 'address')} className="p-3 bg-white/5 hover:bg-white/10 rounded-lg transition-colors shrink-0">
+                        <Copy className="w-5 h-5 text-white/70" />
+                      </button>
                     </div>
-                  ))}
+                    {copied === 'address' && <div className="text-center text-xs text-primary mt-2 font-bold">Copied!</div>}
+                  </div>
+                  
+                  <div className="flex items-center justify-center gap-3 text-white/60 bg-white/5 py-4 rounded-xl font-medium border border-white/5">
+                    <Clock className="w-5 h-5 text-primary" />
+                    Time remaining: <span className="text-white font-bold">{formatTime(timeLeft)}</span>
+                  </div>
                 </div>
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => copyToClipboard(invoice.deliveredContent || '', 'keys')}
-                >
-                  {copied === 'keys' ? <CheckCircle2 className="h-4 w-4 mr-2 text-emerald-500" /> : <Copy className="h-4 w-4 mr-2" />}
-                  Copy All Keys
-                </Button>
-              </>
-            )}
+              )}
+            </div>
+          )}
 
-            {/* Review Button */}
-            {!showReview && (
-              <Button variant="secondary" className="w-full" onClick={() => setShowReview(true)}>
-                <Star className="h-4 w-4 mr-2" />
+          {invoice.status === 'COMPLETED' && invoice.orders?.map((order, idx) => (
+            <div key={idx} className="bg-[#141414] border border-emerald-500/30 p-8 rounded-3xl mt-8 shadow-xl">
+              <h3 className="text-xl font-bold mb-6 text-white flex items-center gap-3">
+                <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+                Delivered: {order.product?.name}
+              </h3>
+              
+              <div className="bg-[#0a0a0a] p-6 rounded-2xl border border-white/5 relative group">
+                <pre className="whitespace-pre-wrap font-mono text-sm text-emerald-400/90 break-all leading-relaxed">
+                  {order.deliveredContent || 'No content delivered.'}
+                </pre>
+                
+                {order.deliveredContent && (
+                  <button 
+                    onClick={() => copyToClipboard(order.deliveredContent!, 'keys')}
+                    className="absolute top-4 right-4 p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                  >
+                    <Copy className="w-5 h-5 text-white" />
+                  </button>
+                )}
+                {copied === 'keys' && <span className="absolute top-16 right-4 text-xs text-emerald-400 font-bold">Copied!</span>}
+              </div>
+            </div>
+          ))}
+
+          {invoice.status === 'COMPLETED' && !showReview && (
+            <div className="text-center mt-8">
+              <Button onClick={() => setShowReview(true)} variant="outline" className="bg-transparent border-white/10 text-white hover:bg-white/5 rounded-xl font-bold py-6">
+                <Star className="w-5 h-5 mr-2" />
                 Leave a Review
               </Button>
-            )}
-
-            {showReview && (
-              <div className="space-y-3 p-4 rounded-lg border">
-                <div className="flex gap-1 justify-center">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button key={star} onClick={() => setReviewRating(star)}>
-                      <Star className={`h-6 w-6 ${star <= reviewRating ? 'fill-amber-500 text-amber-500' : 'text-muted-foreground'}`} />
-                    </button>
-                  ))}
-                </div>
-                <textarea
-                  className="w-full p-2 rounded-md border bg-transparent text-sm min-h-[60px] focus:outline-none focus:ring-1 focus:ring-ring"
-                  placeholder="Leave a comment (optional)"
-                  value={reviewComment}
-                  onChange={(e) => setReviewComment(e.target.value)}
-                />
-                <Button className="w-full" onClick={submitReview}>Submit Review</Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Expired state */}
-      {invoice.status === 'EXPIRED' && (
-        <Card>
-          <CardContent className="pt-6 text-center space-y-4">
-            <p className="text-muted-foreground">This invoice has expired. Please create a new order.</p>
-            <Button asChild>
-              <a href="/">Back to Store</a>
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Order Details */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-medium text-muted-foreground">Order Details</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2 text-sm">
-            {invoice.orders?.map((order: any, i: number) => (
-              <div key={i} className="flex justify-between">
-                <span>{order.product?.name || 'Product'} × {order.quantity}</span>
-                <span className="font-medium">${invoice.totalAmount.toFixed(2)}</span>
-              </div>
-            ))}
-            <div className="border-t pt-2 flex justify-between font-medium">
-              <span>Total</span>
-              <span>{invoice.cryptoAmount} {invoice.cryptoCurrency?.toUpperCase()}</span>
             </div>
-            {invoice.txHash && (
-              <div className="border-t pt-2">
-                <span className="text-muted-foreground">TX: </span>
-                <code className="text-xs break-all">{invoice.txHash}</code>
+          )}
+
+          {showReview && (
+            <div className="bg-[#141414] border border-white/10 p-6 rounded-2xl mt-8">
+              <h3 className="font-bold text-white mb-4">Rate Your Purchase</h3>
+              <div className="flex gap-2 mb-4">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button key={star} onClick={() => setReviewRating(star)}>
+                    <Star className={w-8 h-8  + (star <= reviewRating ? 'fill-yellow-500 text-yellow-500' : 'text-white/20')} />
+                  </button>
+                ))}
               </div>
-            )}
-          </div>
+              <textarea
+                value={reviewComment}
+                onChange={(e) => setReviewComment(e.target.value)}
+                placeholder="Optional feedback..."
+                className="w-full bg-[#0a0a0a] border border-white/10 rounded-xl p-4 text-white focus:outline-none focus:border-primary/50 mb-4 h-24"
+              />
+              <Button onClick={submitReview} className="w-full bg-primary hover:bg-primary/90 text-white font-bold">
+                Submit Review
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
   );
 }
+
+

@@ -3,7 +3,8 @@ import { products } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRight, Star, AlertCircle, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { ChevronRight, Star, AlertCircle, CheckCircle2, ShieldCheck, Box, Tag, ShoppingCart } from 'lucide-react';
+import { AddToCartButton } from './add-to-cart-button';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,144 +30,145 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   
   let avgRating = 0;
   if (product.reviews.length > 0) {
-    avgRating = product.reviews.reduce((acc, rev) => acc + rev.rating, 0) / product.reviews.length;
+    avgRating = product.reviews.reduce((sum, r) => sum + r.rating, 0) / product.reviews.length;
   }
 
   return (
-    <div className="max-w-6xl mx-auto py-10">
-      {/* Breadcrumbs */}
-      <nav className="flex items-center text-sm text-white/50 mb-10 font-medium tracking-wide">
-        <Link href="/" className="hover:text-white transition-colors">STORE</Link>
-        <ChevronRight className="w-4 h-4 mx-3 opacity-50" />
+    <div className="py-8">
+      <div className="flex items-center gap-2 text-sm text-white/40 mb-8 font-semibold uppercase tracking-widest">
+        <Link href="/" className="hover:text-white transition-colors">Store</Link>
+        <ChevronRight className="w-4 h-4" />
         {product.category && (
           <>
-            <Link href={`/?category=${product.category.slug}`} className="hover:text-white transition-colors uppercase">
-              {product.category.name}
-            </Link>
-            <ChevronRight className="w-4 h-4 mx-3 opacity-50" />
+            <Link href={"/?category=" + product.category.slug} className="hover:text-white transition-colors">{product.category.name}</Link>
+            <ChevronRight className="w-4 h-4" />
           </>
         )}
-        <span className="text-white truncate uppercase">{product.name}</span>
-      </nav>
+        <span className="text-primary truncate">{product.name}</span>
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 mb-20">
-        {/* Left Column: Image */}
-        <div className="lg:col-span-7 space-y-6">
-          <div className="aspect-[4/3] rounded-3xl bg-[#0a0a0a] border border-white/5 shadow-2xl overflow-hidden relative group flex items-center justify-center">
-            <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors z-10 duration-500" />
-            {product.imageUrl ? (
-              <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover transform transition-transform duration-700 group-hover:scale-105" />
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center flex-col text-white/30">
-                <span className="font-bold text-2xl uppercase tracking-widest">{product.type}</span>
+      <div className="grid grid-cols-1 lg:grid-cols-[1.2fr,1fr] gap-12">
+        <div className="space-y-8">
+          {product.imageUrl ? (
+            <div className="rounded-3xl overflow-hidden border border-white/5 shadow-2xl relative aspect-[16/9] group">
+              <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none"></div>
+              <div className="absolute bottom-6 left-6 right-6">
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-white font-bold text-sm">
+                  <Tag className="w-4 h-4 text-primary" />
+                  {product.type}
+                </div>
               </div>
+            </div>
+          ) : (
+            <div className="rounded-3xl border border-white/5 shadow-2xl aspect-[16/9] bg-[#0a0a0a] flex items-center justify-center relative overflow-hidden group">
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/10 via-[#0a0a0a] to-[#0a0a0a]"></div>
+              <Box className="w-32 h-32 text-white/10 transition-transform duration-700 group-hover:scale-110" />
+            </div>
+          )}
+
+          <div className="bg-[#0a0a0a] border border-white/5 rounded-3xl p-8 shadow-2xl">
+            <h2 className="text-2xl font-bold mb-6 text-white border-b border-white/5 pb-4">Product Description</h2>
+            {product.description ? (
+              <div className="prose prose-invert max-w-none text-white/70 leading-relaxed font-medium">
+                {product.description}
+              </div>
+            ) : (
+              <p className="text-white/40 italic">No description provided for this product.</p>
             )}
-          </div>
-          <div className="flex items-center gap-4 text-sm text-white/60 bg-[#0a0a0a] border border-white/5 p-5 rounded-2xl shadow-xl">
-            <ShieldCheck className="w-6 h-6 text-emerald-400 shrink-0" />
-            <p className="leading-relaxed">Secure checkout provided by our platform. Instant digital delivery upon payment confirmation.</p>
           </div>
         </div>
 
-        {/* Right Column: Details */}
-        <div className="lg:col-span-5 flex flex-col">
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-4">
-              <span className="px-3 py-1.5 text-[0.7rem] font-bold bg-primary/20 text-primary border border-primary/20 rounded-md uppercase tracking-wider">
-                {product.type}
-              </span>
-              <span className={`px-3 py-1.5 text-[0.7rem] font-bold rounded-md border flex items-center gap-1.5 uppercase tracking-wider ${inStock || isUnlimited ? 'bg-emerald-400/10 text-emerald-400 border-emerald-400/20' : 'bg-red-400/10 text-red-400 border-red-400/20'}`}>
-                {inStock || isUnlimited ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
-                {isUnlimited ? 'Unlimited Stock' : (inStock ? `${product.stock} in stock` : 'Out of Stock')}
-              </span>
-            </div>
+        <div>
+          <div className="bg-[#0a0a0a] border border-white/5 rounded-3xl p-8 shadow-2xl sticky top-24">
+            <h1 className="text-4xl font-black tracking-tight text-white mb-4 leading-tight">{product.name}</h1>
             
-            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-6 text-white drop-shadow-sm leading-tight">{product.name}</h1>
-            
-            <div className="flex items-center gap-5 mb-8 pb-8 border-b border-white/10">
-              <div className="text-4xl font-black text-white">
-                ${Number(product.price).toFixed(2)}
+            <div className="flex items-center gap-4 mb-8 pb-8 border-b border-white/5">
+              <div className="flex gap-1 text-primary">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Star key={star} className={w-5 h-5  + (star <= Math.round(avgRating) ? 'fill-current' : 'text-white/10 fill-transparent')} />
+                ))}
               </div>
-              
-              {product.reviews.length > 0 && (
-                <div className="flex items-center border-l border-white/10 pl-5">
-                  <Star className="w-6 h-6 fill-yellow-500 text-yellow-500 mr-2" />
-                  <span className="font-bold text-xl text-white">{avgRating.toFixed(1)}</span>
-                  <span className="text-white/50 ml-2 font-medium">({product.reviews.length} reviews)</span>
-                </div>
-              )}
+              <span className="text-white/40 text-sm font-semibold">{product.reviews.length} reviews</span>
             </div>
 
-            <div className="prose prose-invert prose-lg max-w-none text-white/70 font-light leading-relaxed mb-8">
-              {(product.description || '').split('\n').map((line, i) => (
-                <p key={i}>{line}</p>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-auto bg-[#0a0a0a] border border-white/5 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary/0 via-primary to-primary/0 opacity-50"></div>
-            <form action={`/checkout`} method="GET" className="space-y-6">
-              <input type="hidden" name="productId" value={product.id} />
-              
-              <div className="space-y-3">
-                <label className="text-xs font-bold text-white/50 uppercase tracking-widest">Quantity</label>
-                <div className="flex items-center w-32 border border-white/10 rounded-xl bg-[#141414]">
-                  <input 
-                    type="number" 
-                    name="quantity" 
-                    defaultValue="1" 
-                    min={product.minQuantity || 1} 
-                    max={isUnlimited ? 100 : Math.min(product.maxQuantity || 100, product.stock)}
-                    className="w-full text-center bg-transparent py-3 focus:outline-none font-bold text-white" 
-                  />
-                </div>
+            <div className="mb-8">
+              <div className="text-sm font-bold text-white/40 uppercase tracking-widest mb-2">Price</div>
+              <div className="text-5xl font-black text-white flex items-center gap-4">
+                ${product.price.toFixed(2)}
               </div>
+            </div>
 
-              <button 
-                type="submit" 
-                disabled={!inStock && !isUnlimited}
-                className="w-full py-4 rounded-xl font-bold text-lg bg-primary text-white shadow-[0_0_20px_rgba(var(--primary),0.4)] hover:bg-primary/90 hover:shadow-[0_0_25px_rgba(var(--primary),0.6)] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:-translate-y-0 disabled:shadow-none flex justify-center items-center gap-2"
-              >
-                {!inStock && !isUnlimited ? 'Out of Stock' : 'Purchase Now'}
-              </button>
-            </form>
+            <div className="space-y-4 mb-8">
+              <div className="flex items-center justify-between p-4 bg-[#141414] border border-white/5 rounded-2xl">
+                <span className="text-white/60 font-semibold">Availability</span>
+                {isUnlimited ? (
+                  <span className="flex items-center gap-2 text-emerald-400 font-bold bg-emerald-400/10 px-3 py-1.5 rounded-lg border border-emerald-400/20">
+                    <CheckCircle2 className="w-4 h-4" />
+                    In Stock
+                  </span>
+                ) : inStock ? (
+                  <span className={lex items-center gap-2 font-bold px-3 py-1.5 rounded-lg border  + (product.stock <= 5 ? 'text-amber-400 bg-amber-400/10 border-amber-400/20' : 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20')}>
+                    {product.stock <= 5 ? <AlertCircle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
+                    {product.stock} In Stock
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2 text-red-400 font-bold bg-red-400/10 px-3 py-1.5 rounded-lg border border-red-400/20">
+                    <AlertCircle className="w-4 h-4" />
+                    Out of Stock
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <AddToCartButton 
+              product={{
+                id: product.id,
+                name: product.name,
+                price: product.price,
+                stock: availableStock
+              }}
+              inStock={inStock || isUnlimited} 
+              maxQuantity={availableStock} 
+              minQuantity={product.minQuantity || 1}
+            />
+
+            <div className="mt-8 flex items-center justify-center gap-2 text-sm text-emerald-400/80 font-bold bg-emerald-400/10 py-3 rounded-xl border border-emerald-400/20">
+              <ShieldCheck className="w-5 h-5" />
+              Instant Secure Delivery
+            </div>
           </div>
         </div>
       </div>
-
+      
       {/* Reviews Section */}
-      <div className="border-t pt-12">
-        <h2 className="text-2xl font-bold mb-8 flex items-center gap-2">
-          Customer Reviews 
-          <span className="text-muted-foreground text-lg font-normal">({product.reviews.length})</span>
-        </h2>
-
-        {product.reviews.length === 0 ? (
-          <div className="text-center py-12 bg-card/30 rounded-2xl border border-dashed">
-            <Star className="w-12 h-12 mx-auto text-muted-foreground mb-4 opacity-30" />
-            <p className="text-muted-foreground text-lg">No reviews yet for this product.</p>
-          </div>
-        ) : (
-          <div className="grid gap-6 md:grid-cols-2">
-            {product.reviews.map(review => (
-              <div key={review.id} className="bg-card border p-6 rounded-2xl">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex gap-1">
-                    {[1,2,3,4,5].map(star => (
-                      <Star key={star} className={`w-4 h-4 ${star <= review.rating ? 'fill-yellow-500 text-yellow-500' : 'text-muted/50'}`} />
+      {product.reviews.length > 0 && (
+        <div className="mt-16 bg-[#0a0a0a] border border-white/5 rounded-3xl p-10 shadow-2xl">
+          <h2 className="text-2xl font-bold mb-8 text-white border-b border-white/5 pb-4">Customer Reviews</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {product.reviews.map((review) => (
+              <div key={review.id} className="bg-[#141414] border border-white/5 p-6 rounded-2xl">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="font-bold text-white">{review.customerEmail.split('@')[0]}***</div>
+                  <div className="flex text-primary">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star key={star} className={w-4 h-4  + (star <= review.rating ? 'fill-current' : 'text-white/10 fill-transparent')} />
                     ))}
                   </div>
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(review.createdAt || '').toLocaleDateString()}
-                  </span>
                 </div>
-                {review.comment && <p className="text-sm/relaxed">{review.comment}</p>}
+                {review.comment && (
+                  <p className="text-white/70 italic text-sm">{review.comment}</p>
+                )}
+                <div className="text-xs text-white/30 mt-4 uppercase tracking-widest font-bold">
+                  {new Date(review.createdAt!).toLocaleDateString()}
+                </div>
               </div>
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
+
+

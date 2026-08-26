@@ -2,18 +2,9 @@ import { db } from '@/lib/db';
 import { products, categories, reviews } from '@/lib/db/schema';
 import { eq, desc, and } from 'drizzle-orm';
 import Link from 'next/link';
-import { Star, Package, FileKey, File, Wrench, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
-
-function getIconForType(type: string) {
-  switch (type) {
-    case 'KEY': return <FileKey className="w-8 h-8 text-primary/50" />;
-    case 'FILE': return <File className="w-8 h-8 text-primary/50" />;
-    case 'SERVICE': return <Wrench className="w-8 h-8 text-primary/50" />;
-    default: return <Package className="w-8 h-8 text-primary/50" />;
-  }
-}
 
 export default async function StorePage({ searchParams }: { searchParams: Promise<{ category?: string }> }) {
   const { category: selectedCategory } = await searchParams;
@@ -28,44 +19,42 @@ export default async function StorePage({ searchParams }: { searchParams: Promis
     orderBy: [desc(products.createdAt)],
   });
 
-  // Filter by category if selected
+  const categoryMap = new Map();
+  allProducts.forEach(p => {
+    if (p.category) {
+      if (!categoryMap.has(p.category.id)) categoryMap.set(p.category.id, p.category);
+    }
+  });
+
   const filteredProducts = selectedCategory 
     ? allProducts.filter(p => p.category?.slug === selectedCategory)
     : allProducts;
 
-  // Get unique categories that have public products
-  const categoryMap = new Map();
-  allProducts.forEach(p => {
-    if (p.category) {
-      categoryMap.set(p.category.id, p.category);
-    }
-  });
   const activeCategories = Array.from(categoryMap.values());
 
   return (
-    <div className="space-y-16 py-8">
-      {/* Hero Section */}
-      <section className="text-center space-y-6 pt-10 pb-8">
-        <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-white drop-shadow-sm">Welcome to Our Store</h1>
-        <p className="text-lg text-white/70 max-w-2xl mx-auto font-light leading-relaxed">
-          Great products don't have to be expensive, and we prove it by delivering high quality with fair, honest prices.
-        </p>
-      </section>
+    <div className="container py-20 component">
+      <div className="section-title scroll-reveal revealed">
+        <h2 className="drop-shadow-sm">Welcome to Our Store</h2>
+      </div>
+      <div className="section-subtitle scroll-reveal revealed">
+        <p>Great products don't have to be expensive, and we prove it by delivering high quality with fair, honest prices.</p>
+      </div>
 
       {/* Categories Filter */}
       {activeCategories.length > 0 && (
-        <div className="flex flex-wrap items-center justify-center gap-3">
+        <div className="flex flex-wrap items-center justify-center gap-3 mb-10">
           <Link 
             href="/"
-            className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 ${!selectedCategory ? 'bg-primary text-white shadow-[0_0_15px_rgba(var(--primary),0.3)]' : 'bg-secondary hover:bg-secondary/80 text-white/80'}`}
+            className={"px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 " + (!selectedCategory ? 'bg-primary text-white shadow-[0_0_15px_rgba(var(--primary),0.3)]' : 'bg-white/5 hover:bg-white/10 text-white/80')}
           >
             All Products
           </Link>
           {activeCategories.map(cat => (
             <Link 
               key={cat.id}
-              href={`/?category=${cat.slug}`}
-              className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 ${selectedCategory === cat.slug ? 'bg-primary text-white shadow-[0_0_15px_rgba(var(--primary),0.3)]' : 'bg-secondary hover:bg-secondary/80 text-white/80'}`}
+              href={"/?category=" + cat.slug}
+              className={"px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 " + (selectedCategory === cat.slug ? 'bg-primary text-white shadow-[0_0_15px_rgba(var(--primary),0.3)]' : 'bg-white/5 hover:bg-white/10 text-white/80')}
             >
               {cat.name}
             </Link>
@@ -81,71 +70,71 @@ export default async function StorePage({ searchParams }: { searchParams: Promis
           <p className="text-white/50">Check back later for new inventory.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 products">
           {filteredProducts.map(product => {
             const inStock = product.stock > 0;
             const lowStock = inStock && product.stock <= 5;
             const isUnlimited = product.stock === -1;
             
-            let avgRating = 0;
-            if (product.reviews.length > 0) {
-              avgRating = product.reviews.reduce((acc, rev) => acc + rev.rating, 0) / product.reviews.length;
-            }
-
             return (
-              <Link key={product.id} href={`/product/${product.slug}`} className="group block h-full">
-                <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl overflow-hidden h-full flex flex-col transition-all duration-300 hover:border-primary/50 hover:shadow-[0_0_25px_rgba(101,113,255,0.15)] hover:-translate-y-1 relative">
-                  
-                  {/* Image Container */}
-                  <div className="aspect-[4/3] bg-[#141414] relative overflow-hidden flex items-center justify-center">
-                    <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors z-10 duration-500" />
+              <div key={product.id} className="product-card-reveal is-revealed h-full">
+                <Link
+                  className="product-card text-decoration-none d-block"
+                  href={/product/ + product.slug}
+                >
+                  <div className="product-image-wrapper position-relative overflow-hidden">
                     {product.imageUrl ? (
-                      <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover transform transition-transform duration-700 group-hover:scale-105" />
+                      <img src={product.imageUrl} className="product-image w-100 object-cover w-full h-full" alt={product.name} />
                     ) : (
-                      getIconForType(product.type)
+                      <div className="product-img-placeholder flex items-center justify-center h-full w-full">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 256 256" opacity="0.3" className="text-white">
+                          <path fill="currentColor" d="m222.72 67.91l-88-48.18a13.9 13.9 0 0 0-13.44 0l-88 48.18A14 14 0 0 0 26 80.18v95.64a14 14 0 0 0 7.28 12.27l88 48.18a13.92 13.92 0 0 0 13.44 0l88-48.18a14 14 0 0 0 7.28-12.27V80.18a14 14 0 0 0-7.28-12.27ZM127 30.25a2 2 0 0 1 1.92 0L212.51 76l-33.94 18.57l-84.52-46.26ZM122 223l-83-45.43a2 2 0 0 1-1-1.75V86.66l84 46ZM43.49 76l38.07-20.85l84.51 46.26L128 122.24ZM218 175.82a2 2 0 0 1-1 1.75L134 223v-90.36l36-19.71V152a6 6 0 0 0 12 0v-45.63l36-19.71Z" />
+                        </svg>
+                      </div>
                     )}
+              
+                    <div className="product-badges">
+                      <div className="product-badge" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
+                        <span>{product.type}</span>
+                      </div>
+                    </div>
                     
-                    {/* Top Badges */}
-                    <div className="absolute top-3 left-3 z-20 flex flex-col gap-2">
-                      <span className="bg-black/60 backdrop-blur-md border border-white/10 text-[0.7rem] font-bold px-3 py-1.5 rounded-md text-white uppercase tracking-wider">
-                        {product.type}
-                      </span>
+                    <div className="product-overlay">
+                      <div className="overlay-content">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="11" cy="11" r="8"></circle>
+                          <path d="m21 21-4.35-4.35"></path>
+                        </svg>
+                        <span>View Details</span>
+                      </div>
                     </div>
                   </div>
-
-                  {/* Info Section */}
-                  <div className="p-5 flex-1 flex flex-col bg-gradient-to-b from-[#0a0a0a] to-[#050505] relative before:absolute before:top-0 before:left-0 before:right-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white/10 before:to-transparent">
-                    <h3 className="font-semibold text-[1.1rem] leading-snug group-hover:text-white text-white/90 transition-colors line-clamp-2 mb-4">
-                      {product.name}
-                    </h3>
+              
+                  <div className="product-info">
+                    <h5 className="product-title text-white">{product.name}</h5>
                     
-                    <div className="flex items-end justify-between mt-auto">
-                      <div className="flex flex-col">
-                        <span className="text-[0.688rem] text-white/50 uppercase tracking-widest font-semibold mb-1 group-hover:text-white/70 transition-colors">Price</span>
-                        <div className="font-bold text-xl text-white">
-                          ${Number(product.price).toFixed(2)}
-                        </div>
-                      </div>
+                    <div className="product-meta flex justify-between items-end">
+                      <p className="product-price mb-0">
+                        <span className="price-label d-block" style={{ opacity: 0, pointerEvents: 'none' }}>STARTING FROM</span>
+                        <span className="current-price">${Number(product.price).toFixed(2)}</span>
+                      </p>
                       
-                      <div>
-                        {isUnlimited ? (
-                           <span className="text-[0.813rem] uppercase tracking-wider font-semibold px-3 py-1.5 rounded-md border text-emerald-400 bg-emerald-400/10 border-emerald-400/30 group-hover:bg-emerald-400/15">
-                            In Stock
-                          </span>
-                        ) : inStock ? (
-                          <span className={`text-[0.813rem] uppercase tracking-wider font-semibold px-3 py-1.5 rounded-md border ${lowStock ? 'text-orange-400 bg-orange-400/10 border-orange-400/30 group-hover:bg-orange-400/15' : 'text-emerald-400 bg-emerald-400/10 border-emerald-400/30 group-hover:bg-emerald-400/15'}`}>
-                            {lowStock ? 'Low Stock' : 'In Stock'}
-                          </span>
-                        ) : (
-                          <span className="text-[0.813rem] uppercase tracking-wider font-semibold px-3 py-1.5 rounded-md border text-red-400 bg-red-400/10 border-red-400/30 group-hover:bg-red-400/15">
-                            Out of Stock
-                          </span>
-                        )}
-                      </div>
+                      {isUnlimited ? (
+                        <p className="product-stock stock-in mb-0 flex items-center text-xs">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 256 256" className="mr-1"><path d="M248,128a56,56,0,0,1-95.6,39.6l-.33-.35L92.12,99.55a40,40,0,1,0,0,56.9l8.52-9.62a8,8,0,1,1,12,10.61l-8.69,9.81-.33.35a56,56,0,1,1,0-79.2l.33.35,59.95,67.7a40,40,0,1,0,0-56.9l-8.52,9.62a8,8,0,1,1-12-10.61l8.69-9.81.33-.35A56,56,0,0,1,248,128Z"></path></svg>
+                          In Stock
+                        </p>
+                      ) : inStock ? (
+                        <p className={"product-stock mb-0 text-xs " + (lowStock ? 'stock-low' : 'stock-in')}>
+                          {product.stock} In Stock
+                        </p>
+                      ) : (
+                        <p className="product-stock stock-out mb-0 text-xs">Out of Stock</p>
+                      )}
                     </div>
                   </div>
-                </div>
-              </Link>
+                </Link>
+              </div>
             );
           })}
         </div>
@@ -153,3 +142,4 @@ export default async function StorePage({ searchParams }: { searchParams: Promis
     </div>
   );
 }
+
