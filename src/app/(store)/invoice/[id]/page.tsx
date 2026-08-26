@@ -274,7 +274,7 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
               <div className="flex gap-2 mb-4">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button key={star} onClick={() => setReviewRating(star)}>
-                    <Star className={w-8 h-8  + (star <= reviewRating ? 'fill-yellow-500 text-yellow-500' : 'text-white/20')} />
+                    <Star className={`w-8 h-8 ` + (star <= reviewRating ? 'fill-yellow-500 text-yellow-500' : 'text-white/20')} />
                   </button>
                 ))}
               </div>

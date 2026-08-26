@@ -86,7 +86,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             <div className="flex items-center gap-4 mb-8 pb-8 border-b border-white/5">
               <div className="flex gap-1 text-primary">
                 {[1, 2, 3, 4, 5].map((star) => (
-                  <Star key={star} className={w-5 h-5  + (star <= Math.round(avgRating) ? 'fill-current' : 'text-white/10 fill-transparent')} />
+                  <Star key={star} className={`w-5 h-5 ` + (star <= Math.round(avgRating) ? 'fill-current' : 'text-white/10 fill-transparent')} />
                 ))}
               </div>
               <span className="text-white/40 text-sm font-semibold">{product.reviews.length} reviews</span>

@@ -68,7 +68,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         .set({ status: 'FULFILLED', deliveredContent })
         .where(eq(orders.id, order.id));
         
-      allDeliveredContent.push(Product:  + product.name + \n + deliveredContent);
+      allDeliveredContent.push(`Product: ` + product.name + `\n` + deliveredContent);
       
       if (product.stock > 0) {
         await db.update(products).set({ stock: Math.max(0, product.stock - order.quantity) }).where(eq(products.id, product.id));

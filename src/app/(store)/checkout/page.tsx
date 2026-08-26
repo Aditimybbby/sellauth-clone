@@ -179,7 +179,7 @@ export default function CheckoutPage() {
             {discount && (
               <div className="flex justify-between mb-2 text-emerald-400 font-medium">
                 <span>Discount</span>
-                <span>-{discount.type === 'PERCENTAGE' ? ${discount.value}${discount.value}% : $}</span>
+                <span>-{discount.type === 'PERCENTAGE' ? `${discount.value}%` : `$${discount.value}`}</span>
               </div>
             )}
 
