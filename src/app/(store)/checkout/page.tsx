@@ -3,19 +3,20 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Bitcoin, Loader2, ArrowRight, ShieldCheck, Tag } from 'lucide-react';
+import { useCartStore } from '@/lib/cart-store';
 
 export default function CheckoutPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const productId = searchParams.get('productId');
   const initialQuantity = parseInt(searchParams.get('quantity') || '1');
+  const cart = useCartStore();
 
-  const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [mounted, setMounted] = useState(false);
   
   const [email, setEmail] = useState('');
-  const [quantity, setQuantity] = useState(initialQuantity);
   const [coin, setCoin] = useState('BTC');
   const [couponCode, setCouponCode] = useState('');
   const [discount, setDiscount] = useState<{ type: string, value: number } | null>(null);
@@ -23,24 +24,38 @@ export default function CheckoutPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!productId) {
-      router.push('/');
-      return;
-    }
+    setMounted(true);
+  }, []);
 
-    // Mock fetch for now as API might not exist yet
-    // In a real implementation: fetch(`/api/products/${productId}`)
-    setLoading(true);
-    setTimeout(() => {
-      setProduct({
-        id: productId,
-        name: 'Premium Product',
-        price: 19.99,
-        type: 'KEY',
-      });
-      setLoading(false);
-    }, 500);
-  }, [productId, router]);
+  useEffect(() => {
+    if (!mounted) return;
+
+    const loadSingleProduct = async () => {
+      // If productId in URL, clear cart and add just this item
+      // In a real app we'd fetch the product details from the API
+      if (productId) {
+        setLoading(true);
+        // Mock fetch
+        setTimeout(() => {
+          cart.clearCart();
+          cart.addItem({
+            id: productId,
+            name: 'Premium Product (Direct Buy)',
+            price: 19.99,
+            quantity: initialQuantity
+          });
+          setLoading(false);
+        }, 500);
+      } else {
+        setLoading(false);
+        if (cart.items.length === 0) {
+          router.push('/');
+        }
+      }
+    };
+    
+    loadSingleProduct();
+  }, [productId, mounted]);
 
   const validateCoupon = async () => {
     if (!couponCode) return;
@@ -65,11 +80,9 @@ export default function CheckoutPage() {
 
     // Mock API call to create invoice
     try {
-      // const res = await fetch('/api/invoices', { method: 'POST', body: JSON.stringify(...) });
-      // const data = await res.json();
-      
+      // In a real scenario we'd send the entire cart: { items: cart.items, email, coin, couponCode }
       setTimeout(() => {
-        // Mock success redirect
+        cart.clearCart();
         router.push(`/invoice/inv_mock_${Date.now()}`);
       }, 1500);
     } catch (err) {
@@ -78,7 +91,7 @@ export default function CheckoutPage() {
     }
   };
 
-  if (loading) {
+  if (!mounted || loading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -86,9 +99,18 @@ export default function CheckoutPage() {
     );
   }
 
-  if (!product) return null;
+  if (cart.items.length === 0) {
+    return (
+      <div className="text-center py-20">
+        <h2 className="text-2xl font-bold mb-4">Your cart is empty</h2>
+        <button onClick={() => router.push('/')} className="text-primary hover:underline">
+          Go back to store
+        </button>
+      </div>
+    );
+  }
 
-  const subtotal = product.price * quantity;
+  const subtotal = cart.total();
   let total = subtotal;
   if (discount) {
     if (discount.type === 'PERCENT') total = subtotal * (1 - discount.value / 100);
@@ -106,7 +128,7 @@ export default function CheckoutPage() {
         {/* Left Column - Form */}
         <div className="space-y-6">
           <form id="checkout-form" onSubmit={handleSubmit} className="space-y-6">
-            <div className="bg-card border rounded-2xl p-6">
+            <div className="bg-card border rounded-2xl p-6 shadow-sm">
               <h2 className="text-xl font-bold mb-4">Contact Information</h2>
               <div className="space-y-2">
                 <label htmlFor="email" className="text-sm font-medium">Email Address *</label>
@@ -123,7 +145,7 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            <div className="bg-card border rounded-2xl p-6">
+            <div className="bg-card border rounded-2xl p-6 shadow-sm">
               <h2 className="text-xl font-bold mb-4">Payment Method</h2>
               <div className="grid grid-cols-2 gap-4">
                 <label className={`border-2 rounded-xl p-4 cursor-pointer transition-all ${coin === 'BTC' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}>
@@ -156,7 +178,7 @@ export default function CheckoutPage() {
             <button 
               type="submit"
               disabled={submitting || !email}
-              className="w-full py-4 rounded-xl font-bold text-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2 group"
+              className="w-full py-4 rounded-xl font-bold text-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2 group shadow-lg hover:shadow-primary/25"
             >
               {submitting ? (
                 <>
@@ -180,18 +202,22 @@ export default function CheckoutPage() {
 
         {/* Right Column - Summary */}
         <div>
-          <div className="bg-card border rounded-2xl p-6 sticky top-24">
+          <div className="bg-card border rounded-2xl p-6 sticky top-24 shadow-sm">
             <h2 className="text-xl font-bold mb-6">Order Summary</h2>
             
-            <div className="flex items-start gap-4 mb-6 pb-6 border-b">
-              <div className="w-16 h-16 rounded-lg bg-secondary flex items-center justify-center shrink-0">
-                <Tag className="w-8 h-8 text-muted-foreground" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-bold leading-tight">{product.name}</h3>
-                <div className="text-sm text-muted-foreground mt-1">Qty: {quantity} &times; ${product.price.toFixed(2)}</div>
-              </div>
-              <div className="font-bold">${subtotal.toFixed(2)}</div>
+            <div className="space-y-4 mb-6 pb-6 border-b max-h-[300px] overflow-y-auto pr-2">
+              {cart.items.map(item => (
+                <div key={item.id} className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+                    <Tag className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-bold leading-tight text-sm">{item.name}</h3>
+                    <div className="text-xs text-muted-foreground mt-1">Qty: {item.quantity} &times; ${item.price.toFixed(2)}</div>
+                  </div>
+                  <div className="font-bold text-sm">${(item.price * item.quantity).toFixed(2)}</div>
+                </div>
+              ))}
             </div>
 
             <div className="space-y-4 mb-6 pb-6 border-b">

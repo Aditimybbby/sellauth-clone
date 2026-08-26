@@ -115,6 +115,24 @@ export const blacklist = sqliteTable('blacklist', {
   createdAt: text('created_at').$defaultFn(() => new Date().toISOString()),
 });
 
+export const tickets = sqliteTable('tickets', {
+  id: text('id').primaryKey().$defaultFn(genId),
+  customerId: text('customer_id').notNull().references(() => customers.id),
+  orderId: text('order_id').references(() => orders.id),
+  subject: text('subject').notNull(),
+  status: text('status', { enum: ['OPEN', 'CLOSED'] }).notNull().default('OPEN'),
+  createdAt: text('created_at').$defaultFn(() => new Date().toISOString()),
+  updatedAt: text('updated_at').$defaultFn(() => new Date().toISOString()),
+});
+
+export const ticketMessages = sqliteTable('ticket_messages', {
+  id: text('id').primaryKey().$defaultFn(genId),
+  ticketId: text('ticket_id').notNull().references(() => tickets.id, { onDelete: 'cascade' }),
+  sender: text('sender', { enum: ['CUSTOMER', 'ADMIN'] }).notNull(),
+  message: text('message').notNull(),
+  createdAt: text('created_at').$defaultFn(() => new Date().toISOString()),
+});
+
 export const settings = sqliteTable('settings', {
   key: text('key').primaryKey(),
   value: text('value').notNull().default(''),
@@ -158,4 +176,14 @@ export const customersRelations = relations(customers, ({ many }) => ({
 export const reviewsRelations = relations(reviews, ({ one }) => ({
   product: one(products, { fields: [reviews.productId], references: [products.id] }),
   order: one(orders, { fields: [reviews.orderId], references: [orders.id] }),
+}));
+
+export const ticketsRelations = relations(tickets, ({ one, many }) => ({
+  customer: one(customers, { fields: [tickets.customerId], references: [customers.id] }),
+  order: one(orders, { fields: [tickets.orderId], references: [orders.id] }),
+  messages: many(ticketMessages),
+}));
+
+export const ticketMessagesRelations = relations(ticketMessages, ({ one }) => ({
+  ticket: one(tickets, { fields: [ticketMessages.ticketId], references: [tickets.id] }),
 }));

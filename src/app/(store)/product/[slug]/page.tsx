@@ -33,90 +33,92 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   }
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className="max-w-6xl mx-auto py-10">
       {/* Breadcrumbs */}
-      <nav className="flex items-center text-sm text-muted-foreground mb-8">
-        <Link href="/" className="hover:text-foreground transition-colors">Store</Link>
-        <ChevronRight className="w-4 h-4 mx-2" />
+      <nav className="flex items-center text-sm text-white/50 mb-10 font-medium tracking-wide">
+        <Link href="/" className="hover:text-white transition-colors">STORE</Link>
+        <ChevronRight className="w-4 h-4 mx-3 opacity-50" />
         {product.category && (
           <>
-            <Link href={`/?category=${product.category.slug}`} className="hover:text-foreground transition-colors">
+            <Link href={`/?category=${product.category.slug}`} className="hover:text-white transition-colors uppercase">
               {product.category.name}
             </Link>
-            <ChevronRight className="w-4 h-4 mx-2" />
+            <ChevronRight className="w-4 h-4 mx-3 opacity-50" />
           </>
         )}
-        <span className="text-foreground truncate">{product.name}</span>
+        <span className="text-white truncate uppercase">{product.name}</span>
       </nav>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mb-16">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 mb-20">
         {/* Left Column: Image */}
-        <div className="space-y-4">
-          <div className="aspect-square rounded-2xl bg-secondary/30 border overflow-hidden relative">
+        <div className="lg:col-span-7 space-y-6">
+          <div className="aspect-[4/3] rounded-3xl bg-[#0a0a0a] border border-white/5 shadow-2xl overflow-hidden relative group flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors z-10 duration-500" />
             {product.imageUrl ? (
-              <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+              <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover transform transition-transform duration-700 group-hover:scale-105" />
             ) : (
-              <div className="absolute inset-0 flex items-center justify-center flex-col text-muted-foreground">
-                <span className="font-medium text-lg opacity-50">{product.type}</span>
+              <div className="absolute inset-0 flex items-center justify-center flex-col text-white/30">
+                <span className="font-bold text-2xl uppercase tracking-widest">{product.type}</span>
               </div>
             )}
           </div>
-          <div className="flex items-center gap-4 text-sm text-muted-foreground bg-card p-4 rounded-xl border">
-            <ShieldCheck className="w-5 h-5 text-emerald-500" />
-            <p>Secure checkout provided by SellAuth Clone. Instant delivery upon payment confirmation.</p>
+          <div className="flex items-center gap-4 text-sm text-white/60 bg-[#0a0a0a] border border-white/5 p-5 rounded-2xl shadow-xl">
+            <ShieldCheck className="w-6 h-6 text-emerald-400 shrink-0" />
+            <p className="leading-relaxed">Secure checkout provided by our platform. Instant digital delivery upon payment confirmation.</p>
           </div>
         </div>
 
         {/* Right Column: Details */}
-        <div className="flex flex-col">
-          <div className="mb-6">
-            <div className="flex items-center gap-3 mb-3">
-              <span className="px-2.5 py-1 text-xs font-bold bg-primary/10 text-primary rounded-md">
+        <div className="lg:col-span-5 flex flex-col">
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-4">
+              <span className="px-3 py-1.5 text-[0.7rem] font-bold bg-primary/20 text-primary border border-primary/20 rounded-md uppercase tracking-wider">
                 {product.type}
               </span>
-              <span className={`px-2.5 py-1 text-xs font-bold rounded-md flex items-center gap-1.5 ${inStock || isUnlimited ? 'bg-emerald-500/10 text-emerald-500' : 'bg-destructive/10 text-destructive'}`}>
+              <span className={`px-3 py-1.5 text-[0.7rem] font-bold rounded-md border flex items-center gap-1.5 uppercase tracking-wider ${inStock || isUnlimited ? 'bg-emerald-400/10 text-emerald-400 border-emerald-400/20' : 'bg-red-400/10 text-red-400 border-red-400/20'}`}>
                 {inStock || isUnlimited ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
                 {isUnlimited ? 'Unlimited Stock' : (inStock ? `${product.stock} in stock` : 'Out of Stock')}
               </span>
             </div>
             
-            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight mb-4">{product.name}</h1>
+            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-6 text-white drop-shadow-sm leading-tight">{product.name}</h1>
             
-            <div className="flex items-center gap-4 mb-6 pb-6 border-b">
-              <div className="text-3xl font-black text-primary">
+            <div className="flex items-center gap-5 mb-8 pb-8 border-b border-white/10">
+              <div className="text-4xl font-black text-white">
                 ${Number(product.price).toFixed(2)}
               </div>
               
               {product.reviews.length > 0 && (
-                <div className="flex items-center border-l pl-4">
-                  <Star className="w-5 h-5 fill-yellow-500 text-yellow-500 mr-2" />
-                  <span className="font-bold text-lg">{avgRating.toFixed(1)}</span>
-                  <span className="text-muted-foreground ml-1.5">({product.reviews.length} reviews)</span>
+                <div className="flex items-center border-l border-white/10 pl-5">
+                  <Star className="w-6 h-6 fill-yellow-500 text-yellow-500 mr-2" />
+                  <span className="font-bold text-xl text-white">{avgRating.toFixed(1)}</span>
+                  <span className="text-white/50 ml-2 font-medium">({product.reviews.length} reviews)</span>
                 </div>
               )}
             </div>
 
-            <div className="prose prose-invert max-w-none text-muted-foreground mb-8">
+            <div className="prose prose-invert prose-lg max-w-none text-white/70 font-light leading-relaxed mb-8">
               {(product.description || '').split('\n').map((line, i) => (
                 <p key={i}>{line}</p>
               ))}
             </div>
           </div>
 
-          <div className="mt-auto bg-card border rounded-2xl p-6 shadow-sm">
-            <form action={`/checkout`} method="GET" className="space-y-4">
+          <div className="mt-auto bg-[#0a0a0a] border border-white/5 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary/0 via-primary to-primary/0 opacity-50"></div>
+            <form action={`/checkout`} method="GET" className="space-y-6">
               <input type="hidden" name="productId" value={product.id} />
               
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Quantity</label>
-                <div className="flex items-center w-32 border rounded-lg bg-background">
+              <div className="space-y-3">
+                <label className="text-xs font-bold text-white/50 uppercase tracking-widest">Quantity</label>
+                <div className="flex items-center w-32 border border-white/10 rounded-xl bg-[#141414]">
                   <input 
                     type="number" 
                     name="quantity" 
                     defaultValue="1" 
                     min={product.minQuantity || 1} 
                     max={isUnlimited ? 100 : Math.min(product.maxQuantity || 100, product.stock)}
-                    className="w-full text-center bg-transparent py-2 focus:outline-none font-medium" 
+                    className="w-full text-center bg-transparent py-3 focus:outline-none font-bold text-white" 
                   />
                 </div>
               </div>
@@ -124,9 +126,9 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
               <button 
                 type="submit" 
                 disabled={!inStock && !isUnlimited}
-                className="w-full py-4 rounded-xl font-bold text-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+                className="w-full py-4 rounded-xl font-bold text-lg bg-primary text-white shadow-[0_0_20px_rgba(var(--primary),0.4)] hover:bg-primary/90 hover:shadow-[0_0_25px_rgba(var(--primary),0.6)] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:-translate-y-0 disabled:shadow-none flex justify-center items-center gap-2"
               >
-                {!inStock && !isUnlimited ? 'Out of Stock' : 'Buy Now'}
+                {!inStock && !isUnlimited ? 'Out of Stock' : 'Purchase Now'}
               </button>
             </form>
           </div>

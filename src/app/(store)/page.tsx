@@ -43,21 +43,21 @@ export default async function StorePage({ searchParams }: { searchParams: Promis
   const activeCategories = Array.from(categoryMap.values());
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-16 py-8">
       {/* Hero Section */}
-      <section className="text-center space-y-4 py-12">
-        <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight">Welcome to Our Store</h1>
-        <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-          Browse our collection of digital products, premium keys, and professional services.
+      <section className="text-center space-y-6 pt-10 pb-8">
+        <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-white drop-shadow-sm">Welcome to Our Store</h1>
+        <p className="text-lg text-white/70 max-w-2xl mx-auto font-light leading-relaxed">
+          Great products don't have to be expensive, and we prove it by delivering high quality with fair, honest prices.
         </p>
       </section>
 
       {/* Categories Filter */}
       {activeCategories.length > 0 && (
-        <div className="flex flex-wrap items-center justify-center gap-2">
+        <div className="flex flex-wrap items-center justify-center gap-3">
           <Link 
             href="/"
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${!selectedCategory ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'}`}
+            className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 ${!selectedCategory ? 'bg-primary text-white shadow-[0_0_15px_rgba(var(--primary),0.3)]' : 'bg-secondary hover:bg-secondary/80 text-white/80'}`}
           >
             All Products
           </Link>
@@ -65,7 +65,7 @@ export default async function StorePage({ searchParams }: { searchParams: Promis
             <Link 
               key={cat.id}
               href={`/?category=${cat.slug}`}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${selectedCategory === cat.slug ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'}`}
+              className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 ${selectedCategory === cat.slug ? 'bg-primary text-white shadow-[0_0_15px_rgba(var(--primary),0.3)]' : 'bg-secondary hover:bg-secondary/80 text-white/80'}`}
             >
               {cat.name}
             </Link>
@@ -75,16 +75,17 @@ export default async function StorePage({ searchParams }: { searchParams: Promis
 
       {/* Product Grid */}
       {filteredProducts.length === 0 ? (
-        <div className="text-center py-24 bg-card/30 rounded-xl border border-dashed">
-          <Search className="w-12 h-12 mx-auto text-muted-foreground mb-4 opacity-50" />
-          <h3 className="text-xl font-medium mb-2">No products found</h3>
-          <p className="text-muted-foreground">Check back later for new inventory.</p>
+        <div className="text-center py-24 bg-[#0a0a0a] rounded-2xl border border-white/5 shadow-2xl">
+          <Search className="w-12 h-12 mx-auto text-white/30 mb-5" />
+          <h3 className="text-2xl font-semibold mb-2 text-white">No products found</h3>
+          <p className="text-white/50">Check back later for new inventory.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredProducts.map(product => {
             const inStock = product.stock > 0;
             const lowStock = inStock && product.stock <= 5;
+            const isUnlimited = product.stock === -1;
             
             let avgRating = 0;
             if (product.reviews.length > 0) {
@@ -93,57 +94,53 @@ export default async function StorePage({ searchParams }: { searchParams: Promis
 
             return (
               <Link key={product.id} href={`/product/${product.slug}`} className="group block h-full">
-                <div className="bg-card border rounded-xl overflow-hidden h-full flex flex-col transition-all duration-300 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-1">
-                  {/* Image Placeholder */}
-                  <div className="aspect-video bg-gradient-to-br from-secondary/50 to-secondary flex items-center justify-center relative overflow-hidden">
-                    <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors z-10" />
+                <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl overflow-hidden h-full flex flex-col transition-all duration-300 hover:border-primary/50 hover:shadow-[0_0_25px_rgba(101,113,255,0.15)] hover:-translate-y-1 relative">
+                  
+                  {/* Image Container */}
+                  <div className="aspect-[4/3] bg-[#141414] relative overflow-hidden flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors z-10 duration-500" />
                     {product.imageUrl ? (
-                      <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                      <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover transform transition-transform duration-700 group-hover:scale-105" />
                     ) : (
                       getIconForType(product.type)
                     )}
                     
-                    {/* Badges */}
+                    {/* Top Badges */}
                     <div className="absolute top-3 left-3 z-20 flex flex-col gap-2">
-                      <span className="bg-background/80 backdrop-blur text-xs font-semibold px-2 py-1 rounded shadow-sm">
+                      <span className="bg-black/60 backdrop-blur-md border border-white/10 text-[0.7rem] font-bold px-3 py-1.5 rounded-md text-white uppercase tracking-wider">
                         {product.type}
-                      </span>
-                    </div>
-                    <div className="absolute top-3 right-3 z-20">
-                      <span className={`text-xs font-bold px-2 py-1 rounded shadow-sm text-white ${inStock ? (lowStock ? 'bg-amber-500' : 'bg-emerald-500') : 'bg-destructive'}`}>
-                        {inStock ? (lowStock ? 'Low Stock' : 'In Stock') : 'Out of Stock'}
                       </span>
                     </div>
                   </div>
 
-                  <div className="p-5 flex-1 flex flex-col">
-                    <div className="flex justify-between items-start mb-2 gap-2">
-                      <h3 className="font-bold text-lg leading-tight group-hover:text-primary transition-colors line-clamp-2">
-                        {product.name}
-                      </h3>
-                      <div className="font-black text-lg shrink-0">
-                        ${Number(product.price).toFixed(2)}
-                      </div>
-                    </div>
+                  {/* Info Section */}
+                  <div className="p-5 flex-1 flex flex-col bg-gradient-to-b from-[#0a0a0a] to-[#050505] relative before:absolute before:top-0 before:left-0 before:right-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white/10 before:to-transparent">
+                    <h3 className="font-semibold text-[1.1rem] leading-snug group-hover:text-white text-white/90 transition-colors line-clamp-2 mb-4">
+                      {product.name}
+                    </h3>
                     
-                    <p className="text-muted-foreground text-sm line-clamp-2 mb-4 flex-1">
-                      {product.description}
-                    </p>
-
-                    <div className="flex items-center justify-between mt-auto pt-4 border-t border-border/50">
-                      <div className="flex items-center text-sm">
-                        {avgRating > 0 ? (
-                          <>
-                            <Star className="w-4 h-4 fill-yellow-500 text-yellow-500 mr-1.5" />
-                            <span className="font-medium">{avgRating.toFixed(1)}</span>
-                            <span className="text-muted-foreground ml-1">({product.reviews.length})</span>
-                          </>
-                        ) : (
-                          <span className="text-muted-foreground text-xs">No reviews</span>
-                        )}
+                    <div className="flex items-end justify-between mt-auto">
+                      <div className="flex flex-col">
+                        <span className="text-[0.688rem] text-white/50 uppercase tracking-widest font-semibold mb-1 group-hover:text-white/70 transition-colors">Price</span>
+                        <div className="font-bold text-xl text-white">
+                          ${Number(product.price).toFixed(2)}
+                        </div>
                       </div>
-                      <div className="text-xs font-medium text-muted-foreground">
-                        {product.category?.name || 'Uncategorized'}
+                      
+                      <div>
+                        {isUnlimited ? (
+                           <span className="text-[0.813rem] uppercase tracking-wider font-semibold px-3 py-1.5 rounded-md border text-emerald-400 bg-emerald-400/10 border-emerald-400/30 group-hover:bg-emerald-400/15">
+                            In Stock
+                          </span>
+                        ) : inStock ? (
+                          <span className={`text-[0.813rem] uppercase tracking-wider font-semibold px-3 py-1.5 rounded-md border ${lowStock ? 'text-orange-400 bg-orange-400/10 border-orange-400/30 group-hover:bg-orange-400/15' : 'text-emerald-400 bg-emerald-400/10 border-emerald-400/30 group-hover:bg-emerald-400/15'}`}>
+                            {lowStock ? 'Low Stock' : 'In Stock'}
+                          </span>
+                        ) : (
+                          <span className="text-[0.813rem] uppercase tracking-wider font-semibold px-3 py-1.5 rounded-md border text-red-400 bg-red-400/10 border-red-400/30 group-hover:bg-red-400/15">
+                            Out of Stock
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
