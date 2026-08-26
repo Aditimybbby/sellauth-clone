@@ -48,7 +48,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --chown=nextjs:nodejs start.sh ./
 RUN chmod +x start.sh
 
-USER nextjs
+# We run as root so that we have permission to write to the mounted Railway volume
+# USER nextjs
 
 EXPOSE 3000
 ENV PORT 3000
