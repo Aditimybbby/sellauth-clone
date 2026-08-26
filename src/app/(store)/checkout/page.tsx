@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -17,7 +18,7 @@ export default function CheckoutPage() {
   const [mounted, setMounted] = useState(false);
   
   const [email, setEmail] = useState('');
-  const [coin, setCoin] = useState('TEST');
+  const [coin, setCoin] = useState('TEST'); // Defaulting to TEST based on request
   const [couponCode, setCouponCode] = useState('');
   const [discount, setDiscount] = useState<{ type: string, value: number } | null>(null);
   const [couponError, setCouponError] = useState('');
@@ -34,7 +35,7 @@ export default function CheckoutPage() {
       if (productId) {
         setLoading(true);
         try {
-          const res = await fetch("/api/products/" + productId);
+          const res = await fetch(/api/products/\);
           if (res.ok) {
             const prod = await res.json();
             cart.clearCart();
@@ -109,7 +110,7 @@ export default function CheckoutPage() {
       }
 
       cart.clearCart();
-      router.push(/invoice/ + data.invoiceId);
+      router.push(/invoice/\);
     } catch (err: any) {
       setError(err.message || 'Failed to create invoice. Please try again.');
       setSubmitting(false);
@@ -166,26 +167,26 @@ export default function CheckoutPage() {
                     <div className="font-semibold text-white/90">{item.name}</div>
                     <div className="text-sm text-white/40">Qty: {item.quantity}</div>
                   </div>
-                  <div className="font-bold text-white">${(item.price * item.quantity).toFixed(2)}</div>
+                  <div className="font-bold text-white">\</div>
                 </div>
               ))}
             </div>
 
             <div className="flex justify-between mb-2 text-white/60 font-medium">
               <span>Subtotal</span>
-              <span>${subtotal.toFixed(2)}</span>
+              <span>\</span>
             </div>
 
             {discount && (
               <div className="flex justify-between mb-2 text-emerald-400 font-medium">
                 <span>Discount</span>
-                <span>-{discount.type === 'PERCENTAGE' ? `${discount.value}%` : `$${discount.value}`}</span>
+                <span>-{discount.type === 'PERCENTAGE' ? \% : \$\}</span>
               </div>
             )}
 
             <div className="flex justify-between mt-6 pt-6 border-t border-white/10 text-2xl font-black text-white">
               <span>Total</span>
-              <span>${total.toFixed(2)}</span>
+              <span>\</span>
             </div>
           </div>
 
@@ -236,7 +237,7 @@ export default function CheckoutPage() {
                   <button
                     type="button"
                     onClick={() => setCoin('TEST')}
-                    className={lex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all }
+                    className={lex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all \}
                   >
                     <CreditCard className="w-5 h-5" />
                     <span className="font-bold">Test Pay</span>
@@ -244,7 +245,7 @@ export default function CheckoutPage() {
                   <button
                     type="button"
                     onClick={() => setCoin('BTC')}
-                    className={lex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all }
+                    className={lex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all \}
                   >
                     <Bitcoin className="w-5 h-5" />
                     <span className="font-bold">Bitcoin</span>
@@ -252,7 +253,7 @@ export default function CheckoutPage() {
                   <button
                     type="button"
                     onClick={() => setCoin('LTC')}
-                    className={lex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all }
+                    className={lex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all \}
                   >
                     <span className="font-bold">L</span>
                     <span className="font-bold">Litecoin</span>
@@ -291,5 +292,3 @@ export default function CheckoutPage() {
     </div>
   );
 }
-
-

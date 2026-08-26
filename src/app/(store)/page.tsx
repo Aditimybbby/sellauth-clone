@@ -1,3 +1,4 @@
+
 import { db } from '@/lib/db';
 import { products, categories, reviews } from '@/lib/db/schema';
 import { eq, desc, and } from 'drizzle-orm';
@@ -46,15 +47,15 @@ export default async function StorePage({ searchParams }: { searchParams: Promis
         <div className="flex flex-wrap items-center justify-center gap-3 mb-10">
           <Link 
             href="/"
-            className={"px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 " + (!selectedCategory ? 'bg-primary text-white shadow-[0_0_15px_rgba(var(--primary),0.3)]' : 'bg-white/5 hover:bg-white/10 text-white/80')}
+            className={px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 \}
           >
             All Products
           </Link>
           {activeCategories.map(cat => (
             <Link 
               key={cat.id}
-              href={"/?category=" + cat.slug}
-              className={"px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 " + (selectedCategory === cat.slug ? 'bg-primary text-white shadow-[0_0_15px_rgba(var(--primary),0.3)]' : 'bg-white/5 hover:bg-white/10 text-white/80')}
+              href={/?category=\}
+              className={px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 \}
             >
               {cat.name}
             </Link>
@@ -80,7 +81,7 @@ export default async function StorePage({ searchParams }: { searchParams: Promis
               <div key={product.id} className="product-card-reveal is-revealed h-full">
                 <Link
                   className="product-card text-decoration-none d-block"
-                  href={/product/ + product.slug}
+                  href={/product/\}
                 >
                   <div className="product-image-wrapper position-relative overflow-hidden">
                     {product.imageUrl ? (
@@ -116,7 +117,7 @@ export default async function StorePage({ searchParams }: { searchParams: Promis
                     <div className="product-meta flex justify-between items-end">
                       <p className="product-price mb-0">
                         <span className="price-label d-block" style={{ opacity: 0, pointerEvents: 'none' }}>STARTING FROM</span>
-                        <span className="current-price">${Number(product.price).toFixed(2)}</span>
+                        <span className="current-price">\</span>
                       </p>
                       
                       {isUnlimited ? (
@@ -125,7 +126,7 @@ export default async function StorePage({ searchParams }: { searchParams: Promis
                           In Stock
                         </p>
                       ) : inStock ? (
-                        <p className={"product-stock mb-0 text-xs " + (lowStock ? 'stock-low' : 'stock-in')}>
+                        <p className={product-stock mb-0 text-xs \}>
                           {product.stock} In Stock
                         </p>
                       ) : (
@@ -142,4 +143,3 @@ export default async function StorePage({ searchParams }: { searchParams: Promis
     </div>
   );
 }
-
