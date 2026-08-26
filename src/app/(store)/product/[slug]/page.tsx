@@ -110,24 +110,14 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
               <div className="space-y-2">
                 <label className="text-sm font-medium">Quantity</label>
                 <div className="flex items-center w-32 border rounded-lg bg-background">
-                  <button type="button" className="px-3 py-2 hover:bg-muted text-muted-foreground transition-colors rounded-l-lg"
-                    onClick={(e) => {
-                      const input = e.currentTarget.nextElementSibling as HTMLInputElement;
-                      if(input) input.stepDown();
-                    }}>-</button>
                   <input 
                     type="number" 
                     name="quantity" 
                     defaultValue="1" 
                     min={product.minQuantity || 1} 
                     max={isUnlimited ? 100 : Math.min(product.maxQuantity || 100, product.stock)}
-                    className="w-full text-center bg-transparent border-x py-2 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none font-medium" 
+                    className="w-full text-center bg-transparent py-2 focus:outline-none font-medium" 
                   />
-                  <button type="button" className="px-3 py-2 hover:bg-muted text-muted-foreground transition-colors rounded-r-lg"
-                    onClick={(e) => {
-                      const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-                      if(input) input.stepUp();
-                    }}>+</button>
                 </div>
               </div>
 

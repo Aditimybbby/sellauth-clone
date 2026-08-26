@@ -115,6 +115,18 @@ export default function NewProductPage() {
           </div>
 
           <div className="space-y-2">
+            <label className="text-sm font-medium">Image URL</label>
+            <input
+              name="imageUrl"
+              type="url"
+              placeholder="https://example.com/image.png"
+              className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+              value={formData.imageUrl}
+              onChange={handleChange}
+            />
+          </div>
+
+          <div className="space-y-2">
             <label className="text-sm font-medium">Price ($)</label>
             <input
               required
