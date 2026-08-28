@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
-import { Copy, CheckCircle2, Clock, XCircle, Loader2, Star } from 'lucide-react';
+import { Fragment, useEffect, useState, use } from 'react';
+import { Copy, CheckCircle2, Clock, XCircle, Loader2, Star, BellRing, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -18,6 +18,8 @@ interface InvoiceData {
   confirmations: number;
   expiresAt: string;
   txHash?: string;
+  receivedCrypto?: number;
+  expectedCrypto?: string;
   orders?: Array<{
     id: string;
     productId: string;
@@ -26,6 +28,12 @@ interface InvoiceData {
     product?: { name: string; type: string } | null;
   }>;
 }
+
+const STATUS_STEPS = [
+  { key: 'await', label: 'Awaiting Payment' },
+  { key: 'detected', label: 'Payment Detected' },
+  { key: 'done', label: 'Completed' },
+];
 
 export default function InvoicePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -207,14 +215,21 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
     );
   }
 
+  const isCompleted = invoice.status === 'COMPLETED';
+  const isExpired = invoice.status === 'EXPIRED';
+  const isDetected = invoice.status === 'DETECTED' || invoice.status === 'CONFIRMING' || invoice.status === 'PARTIALLY_PAID';
+  const coin = (invoice.cryptoCurrency || '').toUpperCase();
+  const activeStep = isCompleted ? 2 : isDetected ? 1 : 0;
+
   return (
     <div className="max-w-3xl mx-auto py-10">
       <Card className="bg-[#0a0a0a] border-white/5 shadow-2xl overflow-hidden rounded-3xl">
         <div className="h-1 bg-gradient-to-r from-primary/50 to-primary w-full"></div>
-        <CardHeader className="text-center pb-8 pt-10">
+        <CardHeader className="text-center pb-6 pt-10">
           <CardTitle className="text-3xl font-extrabold text-white">
-            {invoice.status === 'COMPLETED' ? 'Payment Successful' :
-             invoice.status === 'EXPIRED' ? 'Invoice Expired' :
+            {isCompleted ? 'Payment Successful' :
+             isExpired ? 'Invoice Expired' :
+             isDetected ? 'Payment Detected' :
              'Awaiting Payment'}
           </CardTitle>
           <p className="text-white/50 text-sm mt-2">
@@ -223,13 +238,57 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
         </CardHeader>
 
         <CardContent className="space-y-8 px-10 pb-10">
-          {invoice.status === 'COMPLETED' ? (
+          {/* Payment progress stepper */}
+          {!isExpired && (
+            <div>
+              <div className="flex items-center justify-between max-w-md mx-auto">
+                {STATUS_STEPS.map((step, i) => {
+                  const done = i < activeStep || isCompleted;
+                  const active = i === activeStep && !isCompleted;
+                  const Icon = done && i === 2 ? Check : i === 1 ? BellRing : Clock;
+                  return (
+                    <Fragment key={step.key}>
+                      <div className="flex flex-col items-center gap-2 text-center w-24">
+                        <div
+                          className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors ${
+                            done
+                              ? 'border-emerald-400 bg-emerald-400/10 text-emerald-400'
+                              : active
+                                ? 'border-primary bg-primary/10 text-primary shadow-[0_0_14px_hsl(var(--primary)/0.45)]'
+                                : 'border-white/15 text-white/30'
+                          }`}
+                        >
+                          <Icon className="w-5 h-5" />
+                        </div>
+                        <span className={`text-[11px] font-bold leading-tight ${done || active ? 'text-white' : 'text-white/30'}`}>
+                          {step.label}
+                        </span>
+                      </div>
+                      {i < STATUS_STEPS.length - 1 && (
+                        <div className={`flex-1 h-0.5 mx-1 mb-6 rounded ${i < activeStep ? 'bg-primary' : 'bg-white/10'}`} />
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </div>
+
+              {isDetected && (
+                <div className="mt-5 text-center text-sm bg-amber-500/10 border border-amber-500/20 text-amber-400 py-3 px-4 rounded-xl font-semibold">
+                  {invoice.receivedCrypto
+                    ? <>We can see a payment of {invoice.receivedCrypto} {coin} on-chain{invoice.expectedCrypto ? <> (expected {invoice.expectedCrypto} {coin})</> : ''}. Completing your order shortly…</>
+                    : <>We can see your payment on-chain. Completing your order shortly…</>}
+                </div>
+              )}
+            </div>
+          )}
+
+          {isCompleted ? (
             <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 p-6 rounded-2xl flex flex-col items-center justify-center text-center">
               <CheckCircle2 className="w-16 h-16 mb-4 text-emerald-400" />
               <h3 className="text-xl font-bold mb-2">Thank You For Your Purchase!</h3>
               <p className="text-emerald-400/80 font-medium">Your payment has been confirmed and your order is complete.</p>
             </div>
-          ) : invoice.status === 'EXPIRED' ? (
+          ) : isExpired ? (
             <div className="bg-red-500/10 border border-red-500/20 text-red-500 p-6 rounded-2xl flex flex-col items-center justify-center text-center">
               <XCircle className="w-16 h-16 mb-4 text-red-400" />
               <h3 className="text-xl font-bold mb-2">Invoice Expired</h3>
@@ -280,16 +339,18 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
                     {copied === 'address' && <div className="text-center text-xs text-primary mt-2 font-bold">Copied!</div>}
                   </div>
 
-                  <div className="flex items-center justify-center gap-3 text-white/60 bg-white/5 py-4 rounded-xl font-medium border border-white/5">
-                    <Clock className="w-5 h-5 text-primary" />
-                    Time remaining: <span className="text-white font-bold">{formatTime(timeLeft)}</span>
-                  </div>
+                  {!isDetected && (
+                    <div className="flex items-center justify-center gap-3 text-white/60 bg-white/5 py-4 rounded-xl font-medium border border-white/5">
+                      <Clock className="w-5 h-5 text-primary" />
+                      Time remaining: <span className="text-white font-bold">{formatTime(timeLeft)}</span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           )}
 
-          {invoice.status === 'COMPLETED' && invoice.orders?.map((order, idx) => (
+          {isCompleted && invoice.orders?.map((order, idx) => (
             <div key={idx} className="bg-[#141414] border border-emerald-500/30 p-8 rounded-3xl mt-8 shadow-xl">
               <h3 className="text-xl font-bold mb-6 text-white flex items-center gap-3">
                 <CheckCircle2 className="w-6 h-6 text-emerald-400" />
@@ -315,13 +376,13 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
             </div>
           ))}
 
-          {invoice.status === 'COMPLETED' && reviewState === 'done' && (
+          {isCompleted && reviewState === 'done' && (
             <div className="text-center mt-8 text-emerald-400 font-bold bg-emerald-400/10 border border-emerald-400/20 py-4 rounded-2xl">
               Thanks for your review!
             </div>
           )}
 
-          {invoice.status === 'COMPLETED' && reviewState !== 'done' && !showReview && (
+          {isCompleted && reviewState !== 'done' && !showReview && (
             <div className="text-center mt-8">
               <Button onClick={() => setShowReview(true)} variant="outline" className="bg-transparent border-white/10 text-white hover:bg-white/5 rounded-xl font-bold py-6">
                 <Star className="w-5 h-5 mr-2" />
