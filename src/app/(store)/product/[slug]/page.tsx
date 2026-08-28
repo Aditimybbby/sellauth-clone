@@ -6,6 +6,10 @@ import Link from 'next/link';
 import { ChevronRight, Star, AlertCircle, CheckCircle2, ShieldCheck, Box, Tag } from 'lucide-react';
 import { AddToCartButton } from './add-to-cart-button';
 
+const TYPE_LABELS: Record<string, string> = {
+  ACCOUNTS: 'Accounts', TEXT: 'Text', FILE: 'File', LINKS: 'Links', KEY: 'Accounts', SERVICE: 'Service',
+};
+
 export const dynamic = 'force-dynamic';
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -56,7 +60,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
               <div className="absolute bottom-6 left-6 right-6">
                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-white font-bold text-sm">
                   <Tag className="w-4 h-4 text-primary" />
-                  {product.type}
+                  {TYPE_LABELS[product.type] || product.type}
                 </div>
               </div>
             </div>

@@ -142,8 +142,8 @@ export default function CouponsPage() {
         </Dialog>
       </div>
 
-      <div className="rounded-md border">
-        <table className="w-full text-sm">
+      <div className="rounded-md border overflow-x-auto">
+        <table className="w-full min-w-[640px] text-sm">
           <thead>
             <tr className="border-b bg-muted/50 text-left text-muted-foreground">
               <th className="p-4 font-medium">Code</th>

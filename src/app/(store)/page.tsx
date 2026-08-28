@@ -6,10 +6,13 @@ import { Search, Star, PackageOpen } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
-const TYPE_BADGE_COLORS: Record<string, string> = {
-  KEY: '#2563eb',
-  FILE: '#7c3aed',
-  SERVICE: '#059669',
+const TYPE_BADGE: Record<string, { color: string; label: string }> = {
+  ACCOUNTS: { color: '#2563eb', label: 'Accounts' },
+  TEXT: { color: '#7c3aed', label: 'Text' },
+  FILE: { color: '#059669', label: 'File' },
+  LINKS: { color: '#d97706', label: 'Links' },
+  KEY: { color: '#2563eb', label: 'Accounts' },
+  SERVICE: { color: '#0ea5e9', label: 'Service' },
 };
 
 const SORT_OPTIONS = [
@@ -249,8 +252,8 @@ export default async function StorePage({
                       )}
 
                       <div className="product-badges">
-                        <div className="product-badge" style={{ backgroundColor: TYPE_BADGE_COLORS[product.type] || '#2563eb' }}>
-                          <span>{product.type}</span>
+                        <div className="product-badge" style={{ backgroundColor: TYPE_BADGE[product.type]?.color || '#2563eb' }}>
+                          <span>{TYPE_BADGE[product.type]?.label || product.type}</span>
                         </div>
                       </div>
 

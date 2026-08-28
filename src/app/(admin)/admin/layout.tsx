@@ -128,7 +128,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
           </button>
           <span className="font-semibold">SellAuth</span>
         </header>
-        <main className="flex-1 p-6">{children}</main>
+        <main className="flex-1 p-4 sm:p-6">{children}</main>
       </div>
     </div>
   );

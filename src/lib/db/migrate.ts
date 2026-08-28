@@ -17,9 +17,10 @@ export async function runMigrations() {
       description TEXT DEFAULT '',
       short_description TEXT DEFAULT '',
       price REAL NOT NULL DEFAULT 0,
-      type TEXT NOT NULL DEFAULT 'KEY' CHECK(type IN ('KEY', 'FILE', 'SERVICE')),
+      type TEXT NOT NULL DEFAULT 'ACCOUNTS',
       image_url TEXT,
       file_path TEXT,
+      delivered_content TEXT DEFAULT '',
       stock INTEGER NOT NULL DEFAULT 0,
       visibility TEXT NOT NULL DEFAULT 'PUBLIC' CHECK(visibility IN ('PUBLIC', 'UNLISTED', 'HIDDEN')),
       category_id TEXT REFERENCES categories(id),
@@ -151,6 +152,47 @@ export async function runMigrations() {
     } catch {
       // column already exists on this database — nothing to do
     }
+  }
+
+  // Rebuild products when the old schema still enforces the KEY/FILE/SERVICE
+  // CHECK constraint, which blocks the new ACCOUNTS/TEXT/FILE/LINKS values.
+  // The rebuild preserves every row and migrates the legacy type names.
+  const tbl = await client.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='products'");
+  const createSql = tbl.rows[0]?.sql ? String(tbl.rows[0].sql) : '';
+  const hasOldCheck = /CHECK\s*\(\s*type/i.test(createSql);
+
+  if (hasOldCheck) {
+    // A previous failed attempt can leave the temp table behind — drop it first.
+    await client.execute('DROP TABLE IF EXISTS products_new');
+    await client.execute(`CREATE TABLE products_new (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      slug TEXT NOT NULL UNIQUE,
+      description TEXT DEFAULT '',
+      short_description TEXT DEFAULT '',
+      price REAL NOT NULL DEFAULT 0,
+      type TEXT NOT NULL DEFAULT 'ACCOUNTS',
+      image_url TEXT,
+      file_path TEXT,
+      delivered_content TEXT DEFAULT '',
+      stock INTEGER NOT NULL DEFAULT 0,
+      visibility TEXT NOT NULL DEFAULT 'PUBLIC' CHECK(visibility IN ('PUBLIC', 'UNLISTED', 'HIDDEN')),
+      category_id TEXT REFERENCES categories(id),
+      min_quantity INTEGER DEFAULT 1,
+      max_quantity INTEGER DEFAULT 100,
+      custom_fields TEXT DEFAULT '[]',
+      created_at TEXT,
+      updated_at TEXT
+    )`);
+    await client.execute(`INSERT OR IGNORE INTO products_new
+      (id, name, slug, description, short_description, price, type, image_url, file_path, delivered_content, stock, visibility, category_id, min_quantity, max_quantity, custom_fields, created_at, updated_at)
+      SELECT id, name, slug, description, short_description, price, type, image_url, file_path, COALESCE(delivered_content, ''), stock, visibility, category_id, min_quantity, max_quantity, custom_fields, created_at, updated_at
+      FROM products`);
+    await client.execute('DROP TABLE products');
+    await client.execute('ALTER TABLE products_new RENAME TO products');
+    await client.execute("UPDATE products SET type='ACCOUNTS' WHERE type='KEY'");
+    await client.execute("UPDATE products SET type='TEXT' WHERE type='SERVICE'");
+    console.log('[migrate] products table rebuilt with flexible type column');
   }
 
   // Insert default settings

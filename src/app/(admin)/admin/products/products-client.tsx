@@ -5,6 +5,15 @@ import Link from 'next/link';
 import { Plus, Search, Edit, Trash2, Package } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
+const TYPE_LABELS: Record<string, string> = {
+  ACCOUNTS: 'Accounts',
+  TEXT: 'Text',
+  FILE: 'File',
+  LINKS: 'Links',
+  KEY: 'Accounts',
+  SERVICE: 'Service',
+};
+
 export default function ProductsClient({ products }: { products: any[] }) {
   const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
@@ -71,7 +80,7 @@ export default function ProductsClient({ products }: { products: any[] }) {
         </div>
       ) : (
         <div className="rounded-md border overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[700px] text-sm">
             <thead>
               <tr className="border-b bg-muted/50 text-left text-muted-foreground">
                 <th className="p-4 font-medium">Name</th>
@@ -89,7 +98,7 @@ export default function ProductsClient({ products }: { products: any[] }) {
                   <td className="p-4 font-medium">{product.name}</td>
                   <td className="p-4">
                     <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold">
-                      {product.type}
+                      {TYPE_LABELS[product.type] || product.type}
                     </span>
                   </td>
                   <td className="p-4">${(product.price).toFixed(2)}</td>

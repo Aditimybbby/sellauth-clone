@@ -123,7 +123,7 @@ export default async function AdminDashboardPage() {
               <p className="text-muted-foreground text-sm py-8 text-center">No orders yet</p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full min-w-[560px] text-sm">
                   <thead>
                     <tr className="border-b text-muted-foreground">
                       <th className="text-left py-3 px-2 font-medium">Invoice</th>

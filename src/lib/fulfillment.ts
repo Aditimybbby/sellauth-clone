@@ -5,11 +5,12 @@ import { nanoid } from 'nanoid';
 import { sendFulfillmentEmail } from '@/lib/email';
 
 /**
- * Marks an invoice COMPLETED and delivers everything the customer bought:
- * assigns license keys, builds download links, delivers static product
- * content, decrements stock and updates customer stats. Shared by the
- * mock-payment endpoint, the BlockCypher webhook and the payment polling
- * so every path fulfils identically.
+ * Marks an invoice COMPLETED and delivers everything the customer bought.
+ * Delivery rules by product type:
+ *  - ACCOUNTS: one unique account from the pool per buyer
+ *  - TEXT / LINKS: the product's static content, same for every buyer
+ *  - FILE: download link to the uploaded file
+ *  - legacy KEY / SERVICE types keep their old behaviour
  */
 export async function fulfillInvoice(invoiceId: string, txHash?: string, confirmations = 0) {
   const invoice = await db.query.invoices.findFirst({
@@ -43,8 +44,9 @@ export async function fulfillInvoice(invoiceId: string, txHash?: string, confirm
     if (!product) continue;
     let deliveredContent = '';
     const staticContent = (product.deliveredContent || '').trim();
+    const type = product.type;
 
-    if (product.type === 'KEY') {
+    if (type === 'ACCOUNTS' || type === 'KEY') {
       const availableKeys = await db.query.licenseKeys.findMany({
         where: (keys, { and, eq }) => and(eq(keys.productId, product.id), eq(keys.isUsed, false)),
         limit: order.quantity,
@@ -58,7 +60,6 @@ export async function fulfillInvoice(invoiceId: string, txHash?: string, confirm
         }
         deliveredContent = keysToDeliver.join('\n');
       } else if (staticContent) {
-        // No unique keys left — deliver the product's static content instead
         deliveredContent = staticContent;
       } else if (product.stock === -1) {
         for (let i = 0; i < order.quantity; i++) {
@@ -68,7 +69,7 @@ export async function fulfillInvoice(invoiceId: string, txHash?: string, confirm
       } else {
         deliveredContent = 'ERROR: Out of stock during fulfillment';
       }
-    } else if (product.type === 'FILE') {
+    } else if (type === 'FILE') {
       if (product.filePath) {
         deliveredContent = 'Download Link: ' + (process.env.NEXT_PUBLIC_APP_URL || '') + product.filePath;
       } else if (staticContent) {
@@ -76,8 +77,13 @@ export async function fulfillInvoice(invoiceId: string, txHash?: string, confirm
       } else {
         deliveredContent = 'File delivery: please contact support with your invoice ID to receive your file.';
       }
-    } else if (product.type === 'SERVICE') {
-      deliveredContent = staticContent || 'Service Details: Please contact support with your invoice ID to begin service.';
+    } else {
+      // TEXT, LINKS and legacy SERVICE
+      deliveredContent =
+        staticContent ||
+        (type === 'SERVICE'
+          ? 'Service Details: Please contact support with your invoice ID to begin service.'
+          : 'Delivery content is being prepared. Please contact support with your invoice ID.');
     }
 
     await db.update(orders)

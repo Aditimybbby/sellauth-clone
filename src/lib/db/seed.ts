@@ -77,7 +77,7 @@ async function seed() {
       'Get lifetime access to our premium VPN service. Supports unlimited devices and 100+ server locations worldwide.',
     shortDescription: 'Lifetime VPN access key',
     price: 29.99,
-    type: 'KEY',
+    type: 'ACCOUNTS',
     stock: 50,
     categoryId: softwareCat.id,
   });
@@ -101,7 +101,7 @@ async function seed() {
       'We will build a custom Discord bot tailored to your server needs. Includes setup, hosting for 1 month, and documentation.',
     shortDescription: 'Custom Discord bot service',
     price: 49.99,
-    type: 'SERVICE',
+    type: 'TEXT',
     stock: 10,
     categoryId: servicesCat.id,
   });

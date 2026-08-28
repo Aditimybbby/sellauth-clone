@@ -387,7 +387,7 @@ export default function SettingsPage() {
               </p>
             ) : (
               <div className="rounded-md border overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full min-w-[480px] text-sm">
                   <thead>
                     <tr className="border-b bg-muted/50 text-left text-muted-foreground">
                       <th className="p-3 font-medium">Type</th>

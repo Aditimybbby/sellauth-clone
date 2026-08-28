@@ -49,8 +49,8 @@ export default function AdminTicketsPage() {
           <p className="text-muted-foreground">No support tickets found.</p>
         </div>
       ) : (
-        <div className="bg-card border rounded-2xl overflow-hidden shadow-sm">
-          <table className="w-full text-left text-sm">
+        <div className="bg-card border rounded-2xl overflow-hidden shadow-sm overflow-x-auto">
+          <table className="w-full min-w-[640px] text-left text-sm">
             <thead className="bg-muted/50 text-muted-foreground">
               <tr>
                 <th className="px-6 py-4 font-medium">Ticket ID</th>

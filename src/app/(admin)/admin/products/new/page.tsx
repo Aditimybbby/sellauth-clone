@@ -3,7 +3,16 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Save, Loader2, ImagePlus, FileUp, Check } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, ImagePlus, FileUp, Check, Users, Type as TypeIcon, FileUp as FileIcon, LinkIcon } from 'lucide-react';
+
+const TYPE_OPTIONS = [
+  { value: 'ACCOUNTS', label: 'Accounts', desc: 'Unique accounts (mail:pass) — one per buyer. Stock = number of accounts.', icon: Users },
+  { value: 'TEXT', label: 'Text', desc: 'Same text delivered to every buyer. You choose the stock limit.', icon: TypeIcon },
+  { value: 'FILE', label: 'File', desc: 'Digital file download. Unlimited stock.', icon: FileIcon },
+  { value: 'LINKS', label: 'Links', desc: 'Links delivered to every buyer. You choose the stock limit.', icon: LinkIcon },
+] as const;
+
+type ProductType = (typeof TYPE_OPTIONS)[number]['value'];
 
 function ProductForm() {
   const router = useRouter();
@@ -22,7 +31,7 @@ function ProductForm() {
     shortDescription: '',
     description: '',
     price: 0,
-    type: 'KEY',
+    type: 'ACCOUNTS' as ProductType,
     categoryId: '',
     visibility: 'PUBLIC',
     minQuantity: 1,
@@ -32,9 +41,10 @@ function ProductForm() {
     filePath: '',
     deliveredContent: '',
   });
-  const unlimitedStock = Number(formData.stock) === -1;
   const [keys, setKeys] = useState('');
   const [categories, setCategories] = useState<any[]>([]);
+
+  const unlimitedStock = Number(formData.stock) === -1 || formData.type === 'FILE';
 
   useEffect(() => {
     fetch('/api/categories')
@@ -53,13 +63,14 @@ function ProductForm() {
         return res.json();
       })
       .then((p) => {
+        const legacyType = p.type === 'KEY' ? 'ACCOUNTS' : p.type === 'SERVICE' ? 'TEXT' : p.type;
         setFormData({
           name: p.name || '',
           slug: p.slug || '',
           shortDescription: p.shortDescription || '',
           description: p.description || '',
           price: p.price ?? 0,
-          type: p.type || 'KEY',
+          type: (legacyType as ProductType) || 'ACCOUNTS',
           categoryId: p.categoryId || '',
           visibility: p.visibility || 'PUBLIC',
           minQuantity: p.minQuantity ?? 1,
@@ -139,16 +150,19 @@ function ProductForm() {
     setSaving(true);
     setError('');
     try {
+      // FILE products are always unlimited
+      const payload = { ...formData, stock: formData.type === 'FILE' ? -1 : formData.stock };
+
       const res = await fetch(editId ? `/api/products/${editId}` : '/api/products', {
         method: editId ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       if (res.ok) {
         const product = await res.json();
 
-        if (formData.type === 'KEY' && keys.trim()) {
+        if (formData.type === 'ACCOUNTS' && keys.trim()) {
           const keyList = keys.split('\n').filter(k => k.trim());
           if (keyList.length > 0) {
             await fetch(`/api/products/${product.id}/keys`, {
@@ -181,6 +195,10 @@ function ProductForm() {
     );
   }
 
+  const accountsCount = keys.split('\n').filter(k => k.trim()).length;
+  const inputClass = 'flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm';
+  const areaClass = 'flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm';
+
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
@@ -206,7 +224,7 @@ function ProductForm() {
               required
               name="name"
               type="text"
-              className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+              className={inputClass}
               value={formData.name}
               onChange={handleChange}
             />
@@ -218,10 +236,31 @@ function ProductForm() {
               required
               name="slug"
               type="text"
-              className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+              className={inputClass}
               value={formData.slug}
               onChange={handleChange}
             />
+          </div>
+
+          {/* Product type cards */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Product type</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {TYPE_OPTIONS.map(opt => {
+                const selected = formData.type === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, type: opt.value, stock: opt.value === 'FILE' ? -1 : prev.stock === -1 ? 0 : prev.stock }))}
+                    className={`text-left rounded-xl border-2 p-4 transition-all ${selected ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground/40'}`}
+                  >
+                    <div className={`font-semibold text-sm ${selected ? 'text-primary' : ''}`}>{opt.label}</div>
+                    <div className="text-xs text-muted-foreground mt-1 leading-snug">{opt.desc}</div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -229,7 +268,7 @@ function ProductForm() {
               <label className="text-sm font-medium">Category</label>
               <select
                 name="categoryId"
-                className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                className={inputClass}
                 value={formData.categoryId}
                 onChange={handleChange}
               >
@@ -248,7 +287,7 @@ function ProductForm() {
                 type="number"
                 step="0.01"
                 min="0"
-                className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                className={inputClass}
                 value={formData.price}
                 onChange={handleChange}
               />
@@ -260,7 +299,7 @@ function ProductForm() {
             <input
               name="shortDescription"
               type="text"
-              className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+              className={inputClass}
               value={formData.shortDescription}
               onChange={handleChange}
             />
@@ -271,48 +310,49 @@ function ProductForm() {
             <textarea
               name="description"
               rows={4}
-              className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+              className={areaClass}
               value={formData.description}
               onChange={handleChange}
             />
           </div>
 
-          <div className="space-y-2 p-4 border rounded-md bg-muted/20">
-            <label className="text-sm font-medium">Delivered Content — same for every buyer (optional)</label>
-            <p className="text-xs text-muted-foreground">
-              Paste mail:pass lines, links or any text here — every buyer receives exactly this after
-              payment. Leave empty if you use the key pool (KEY) or an uploaded file (FILE) instead.
-            </p>
-            <textarea
-              name="deliveredContent"
-              rows={4}
-              className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm font-mono"
-              value={formData.deliveredContent}
-              onChange={handleChange}
-              placeholder={'user@mail.com:password123\nuser2@mail.com:password456\nhttps://your-link.com/download'}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {/* Stock per type */}
+          {formData.type !== 'FILE' && (
             <div className="space-y-2">
-              <label className="text-sm font-medium">Type</label>
-              <select
-                name="type"
-                className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
-                value={formData.type}
+              <label className="text-sm font-medium">Stock</label>
+              <input
+                name="stock"
+                type="number"
+                min="0"
+                className={inputClass}
+                value={formData.stock}
                 onChange={handleChange}
-              >
-                <option value="KEY">Serial Keys</option>
-                <option value="FILE">Digital File</option>
-                <option value="SERVICE">Manual Service</option>
-              </select>
+              />
+              {formData.type === 'ACCOUNTS' && (
+                <p className="text-xs text-muted-foreground">
+                  Limited stock — buyers receive one account each. The count grows automatically
+                  when you add accounts below.
+                </p>
+              )}
+              {formData.type === 'TEXT' && (
+                <p className="text-xs text-muted-foreground">
+                  You choose the limit — every buyer receives the same text.
+                </p>
+              )}
+              {formData.type === 'LINKS' && (
+                <p className="text-xs text-muted-foreground">
+                  You choose the limit — every buyer receives the same links.
+                </p>
+              )}
             </div>
+          )}
 
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Visibility</label>
               <select
                 name="visibility"
-                className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                className={inputClass}
                 value={formData.visibility}
                 onChange={handleChange}
               >
@@ -323,56 +363,16 @@ function ProductForm() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Min Qty</label>
+              <label className="text-sm font-medium">Min Quantity</label>
               <input
                 name="minQuantity"
                 type="number"
                 min="1"
-                className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                className={inputClass}
                 value={formData.minQuantity}
                 onChange={handleChange}
               />
             </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Max Qty</label>
-              <input
-                name="maxQuantity"
-                type="number"
-                min="1"
-                className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
-                value={formData.maxQuantity}
-                onChange={handleChange}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Stock</label>
-            <div className="flex items-center gap-3">
-              <input
-                name="stock"
-                type="number"
-                min="-1"
-                disabled={unlimitedStock}
-                className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm disabled:opacity-50"
-                value={unlimitedStock ? '' : formData.stock}
-                onChange={handleChange}
-                placeholder={unlimitedStock ? 'Unlimited' : ''}
-              />
-              <label className="flex shrink-0 items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={unlimitedStock}
-                  onChange={(e) => setFormData(prev => ({ ...prev, stock: e.target.checked ? -1 : 0 }))}
-                />
-                Unlimited
-              </label>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Tick Unlimited for text/link content and KEY products without a key pool. KEY products
-              also gain stock automatically when keys are imported below.
-            </p>
           </div>
 
           <div className="space-y-2">
@@ -400,19 +400,50 @@ function ProductForm() {
             </div>
           </div>
 
-          {formData.type === 'KEY' && (
+          {/* Type-specific content */}
+          {formData.type === 'ACCOUNTS' && (
             <div className="space-y-2 p-4 border rounded-md bg-muted/20">
               <label className="text-sm font-medium flex justify-between">
-                <span>{editId ? 'Add More License Keys' : 'License Keys'}</span>
-                <span className="text-muted-foreground">{keys.split('\n').filter(k => k.trim()).length} keys</span>
+                <span>{editId ? 'Add more accounts' : 'Accounts'}</span>
+                <span className="text-muted-foreground">{accountsCount} added</span>
               </label>
-              <p className="text-xs text-muted-foreground mb-2">Enter one key per line.</p>
+              <p className="text-xs text-muted-foreground mb-2">One account per line (mail:pass). Each buyer gets one unique account.</p>
               <textarea
                 rows={6}
                 className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm font-mono"
                 value={keys}
                 onChange={(e) => setKeys(e.target.value)}
-                placeholder={'XXXX-XXXX-XXXX-XXXX\nYYYY-YYYY-YYYY-YYYY'}
+                placeholder={'user@mail.com:password123\nuser2@mail.com:password456'}
+              />
+            </div>
+          )}
+
+          {formData.type === 'TEXT' && (
+            <div className="space-y-2 p-4 border rounded-md bg-muted/20">
+              <label className="text-sm font-medium">Text content</label>
+              <p className="text-xs text-muted-foreground mb-2">Delivered to every buyer after payment.</p>
+              <textarea
+                rows={6}
+                name="deliveredContent"
+                className={areaClass + ' font-mono'}
+                value={formData.deliveredContent}
+                onChange={handleChange}
+                placeholder={'Your activation text, instructions or anything else...'}
+              />
+            </div>
+          )}
+
+          {formData.type === 'LINKS' && (
+            <div className="space-y-2 p-4 border rounded-md bg-muted/20">
+              <label className="text-sm font-medium">Links</label>
+              <p className="text-xs text-muted-foreground mb-2">Delivered to every buyer after payment.</p>
+              <textarea
+                rows={5}
+                name="deliveredContent"
+                className={areaClass + ' font-mono'}
+                value={formData.deliveredContent}
+                onChange={handleChange}
+                placeholder={'https://link1.com\nhttps://link2.com'}
               />
             </div>
           )}
@@ -432,14 +463,7 @@ function ProductForm() {
                   <input type="file" className="hidden" onChange={handleFileUpload} />
                 </label>
               </div>
-            </div>
-          )}
-
-          {formData.type === 'SERVICE' && (
-            <div className="space-y-2 p-4 border rounded-md bg-muted/20">
-              <p className="text-sm text-muted-foreground">
-                Service products require manual fulfillment after purchase. You will need to contact the customer or mark the order as fulfilled manually.
-              </p>
+              <p className="text-xs text-muted-foreground mt-2">Buyers get a download link. Unlimited stock.</p>
             </div>
           )}
 
