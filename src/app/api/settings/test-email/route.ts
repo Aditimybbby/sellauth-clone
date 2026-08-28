@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { getSmtpConfig, sendMail } from '@/lib/email';
+import { getSmtpConfig } from '@/lib/email';
+import nodemailer from 'nodemailer';
 
 // POST = send a test email using the currently saved SMTP configuration.
 export async function POST(req: NextRequest) {
@@ -23,12 +24,21 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const ok = await sendMail(to, 'SellAuth — SMTP test', '<p>Your SMTP configuration works. Invoice and delivery emails will be sent from this server.</p>');
-    if (!ok) {
-      return NextResponse.json({ ok: false, error: 'Sending failed — check the SMTP host/port/credentials and server logs.' }, { status: 502 });
-    }
-
-    return NextResponse.json({ ok: true });
+    const t = nodemailer.createTransport({
+      host: cfg.host,
+      port: cfg.port,
+      secure: cfg.port === 465,
+      auth: { user: cfg.user, pass: cfg.pass },
+      tls: { rejectUnauthorized: !cfg.allowInvalidTls },
+    });
+    const info = await t.sendMail({
+      from: cfg.from,
+      to,
+      subject: 'SellAuth — SMTP test',
+      html: '<p>Your SMTP configuration works. Invoice and delivery emails will be sent from this server.</p>',
+    });
+    // Surface the receiving server's own response so delivery problems are visible
+    return NextResponse.json({ ok: true, serverResponse: info.response || '' });
   } catch (error) {
     return NextResponse.json({ ok: false, error: 'Test email failed' }, { status: 500 });
   }

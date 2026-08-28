@@ -14,6 +14,7 @@ export const products = sqliteTable('products', {
   type: text('type', { enum: ['KEY', 'FILE', 'SERVICE'] }).notNull().default('KEY'),
   imageUrl: text('image_url'),
   filePath: text('file_path'),
+  deliveredContent: text('delivered_content').default(''),
   stock: integer('stock').notNull().default(0),
   visibility: text('visibility', { enum: ['PUBLIC', 'UNLISTED', 'HIDDEN'] }).notNull().default('PUBLIC'),
   categoryId: text('category_id').references(() => categories.id),

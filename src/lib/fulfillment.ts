@@ -6,9 +6,10 @@ import { sendFulfillmentEmail } from '@/lib/email';
 
 /**
  * Marks an invoice COMPLETED and delivers everything the customer bought:
- * assigns license keys, builds download links, decrements stock and updates
- * customer stats. Shared by the mock-payment endpoint and the BlockCypher
- * webhook / payment polling so every path fulfils identically.
+ * assigns license keys, builds download links, delivers static product
+ * content, decrements stock and updates customer stats. Shared by the
+ * mock-payment endpoint, the BlockCypher webhook and the payment polling
+ * so every path fulfils identically.
  */
 export async function fulfillInvoice(invoiceId: string, txHash?: string, confirmations = 0) {
   const invoice = await db.query.invoices.findFirst({
@@ -41,6 +42,7 @@ export async function fulfillInvoice(invoiceId: string, txHash?: string, confirm
     const product = order.product;
     if (!product) continue;
     let deliveredContent = '';
+    const staticContent = (product.deliveredContent || '').trim();
 
     if (product.type === 'KEY') {
       const availableKeys = await db.query.licenseKeys.findMany({
@@ -54,21 +56,28 @@ export async function fulfillInvoice(invoiceId: string, txHash?: string, confirm
           keysToDeliver.push(key.keyValue);
           await db.update(licenseKeys).set({ isUsed: true, orderId: order.id }).where(eq(licenseKeys.id, key.id));
         }
+        deliveredContent = keysToDeliver.join('\n');
+      } else if (staticContent) {
+        // No unique keys left — deliver the product's static content instead
+        deliveredContent = staticContent;
       } else if (product.stock === -1) {
         for (let i = 0; i < order.quantity; i++) {
           keysToDeliver.push('TEST-' + nanoid(10).toUpperCase());
         }
+        deliveredContent = keysToDeliver.join('\n');
       } else {
-        keysToDeliver.push('ERROR: Out of stock during fulfillment');
+        deliveredContent = 'ERROR: Out of stock during fulfillment';
       }
-
-      deliveredContent = keysToDeliver.join('\n');
     } else if (product.type === 'FILE') {
-      deliveredContent = product.filePath
-        ? 'Download Link: ' + (process.env.NEXT_PUBLIC_APP_URL || '') + product.filePath
-        : 'File delivery: please contact support with your invoice ID to receive your file.';
+      if (product.filePath) {
+        deliveredContent = 'Download Link: ' + (process.env.NEXT_PUBLIC_APP_URL || '') + product.filePath;
+      } else if (staticContent) {
+        deliveredContent = staticContent;
+      } else {
+        deliveredContent = 'File delivery: please contact support with your invoice ID to receive your file.';
+      }
     } else if (product.type === 'SERVICE') {
-      deliveredContent = 'Service Details: Please contact support with your invoice ID to begin service.';
+      deliveredContent = staticContent || 'Service Details: Please contact support with your invoice ID to begin service.';
     }
 
     await db.update(orders)

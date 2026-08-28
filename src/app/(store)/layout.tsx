@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import Link from 'next/link';
 import { Store } from 'lucide-react';
 import { CartDrawer } from '@/components/cart-drawer';
+import { MobileMenu } from '@/components/mobile-menu';
 
 try { await runMigrations(); } catch {}
 
@@ -76,6 +77,13 @@ export default async function StoreLayout({ children }: { children: React.ReactN
               <div className="cart">
                 <CartDrawer />
               </div>
+              <MobileMenu
+                links={[
+                  { href: '/', label: 'Home' },
+                  { href: '/customer/tickets', label: 'Support' },
+                  { href: '/customer', label: 'My Account' },
+                ]}
+              />
             </div>
           </div>
         </div>

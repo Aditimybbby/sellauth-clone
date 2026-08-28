@@ -30,7 +30,9 @@ function ProductForm() {
     stock: 0,
     imageUrl: '',
     filePath: '',
+    deliveredContent: '',
   });
+  const unlimitedStock = Number(formData.stock) === -1;
   const [keys, setKeys] = useState('');
   const [categories, setCategories] = useState<any[]>([]);
 
@@ -65,6 +67,7 @@ function ProductForm() {
           stock: p.stock ?? 0,
           imageUrl: p.imageUrl || '',
           filePath: p.filePath || '',
+          deliveredContent: p.deliveredContent || '',
         });
         setLoadingProduct(false);
       })
@@ -274,6 +277,22 @@ function ProductForm() {
             />
           </div>
 
+          <div className="space-y-2 p-4 border rounded-md bg-muted/20">
+            <label className="text-sm font-medium">Delivered Content — same for every buyer (optional)</label>
+            <p className="text-xs text-muted-foreground">
+              Paste mail:pass lines, links or any text here — every buyer receives exactly this after
+              payment. Leave empty if you use the key pool (KEY) or an uploaded file (FILE) instead.
+            </p>
+            <textarea
+              name="deliveredContent"
+              rows={4}
+              className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm font-mono"
+              value={formData.deliveredContent}
+              onChange={handleChange}
+              placeholder={'user@mail.com:password123\nuser2@mail.com:password456\nhttps://your-link.com/download'}
+            />
+          </div>
+
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Type</label>
@@ -330,17 +349,29 @@ function ProductForm() {
 
           <div className="space-y-2">
             <label className="text-sm font-medium">Stock</label>
-            <input
-              name="stock"
-              type="number"
-              min="-1"
-              className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
-              value={formData.stock}
-              onChange={handleChange}
-            />
+            <div className="flex items-center gap-3">
+              <input
+                name="stock"
+                type="number"
+                min="-1"
+                disabled={unlimitedStock}
+                className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm disabled:opacity-50"
+                value={unlimitedStock ? '' : formData.stock}
+                onChange={handleChange}
+                placeholder={unlimitedStock ? 'Unlimited' : ''}
+              />
+              <label className="flex shrink-0 items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={unlimitedStock}
+                  onChange={(e) => setFormData(prev => ({ ...prev, stock: e.target.checked ? -1 : 0 }))}
+                />
+                Unlimited
+              </label>
+            </div>
             <p className="text-xs text-muted-foreground">
-              Set to <span className="font-mono">-1</span> for unlimited stock. KEY products also gain
-              stock automatically when keys are imported below.
+              Tick Unlimited for text/link content and KEY products without a key pool. KEY products
+              also gain stock automatically when keys are imported below.
             </p>
           </div>
 

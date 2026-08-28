@@ -6,6 +6,7 @@ import { runMigrations } from '@/lib/db/migrate';
 import { products } from '@/lib/db/schema';
 import { desc } from 'drizzle-orm';
 import ProductsClient from './products-client';
+import { CategoriesManager } from './categories-manager';
 
 try { await runMigrations(); } catch {}
 
@@ -21,5 +22,10 @@ export default async function ProductsPage() {
     orderBy: [desc(products.createdAt)],
   });
 
-  return <ProductsClient products={JSON.parse(JSON.stringify(allProducts))} />;
+  return (
+    <div className="space-y-6">
+      <CategoriesManager />
+      <ProductsClient products={JSON.parse(JSON.stringify(allProducts))} />
+    </div>
+  );
 }

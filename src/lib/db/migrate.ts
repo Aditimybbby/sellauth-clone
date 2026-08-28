@@ -143,6 +143,7 @@ export async function runMigrations() {
   // a "duplicate column" error on one never blocks the rest).
   const alterations = [
     'ALTER TABLE invoices ADD COLUMN baseline_balance REAL DEFAULT 0',
+    'ALTER TABLE products ADD COLUMN delivered_content TEXT DEFAULT \'\'',
   ];
   for (const sql of alterations) {
     try {

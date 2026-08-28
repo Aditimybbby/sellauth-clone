@@ -50,3 +50,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to create category' }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const id = req.nextUrl.searchParams.get('id');
+    if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
+
+    // Detach products from the category first (FK constraint)
+    await db.update(products).set({ categoryId: null }).where(eq(products.categoryId, id));
+    await db.delete(categories).where(eq(categories.id, id));
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to delete category' }, { status: 500 });
+  }
+}

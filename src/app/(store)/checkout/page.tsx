@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Bitcoin, Loader2, ArrowRight, ShieldCheck, Tag, CreditCard } from 'lucide-react';
+import { Bitcoin, Loader2, ArrowRight, ShieldCheck, Tag } from 'lucide-react';
 import { useCartStore } from '@/lib/cart-store';
 
 function CheckoutInner() {
@@ -17,7 +17,7 @@ function CheckoutInner() {
   const [mounted, setMounted] = useState(false);
 
   const [email, setEmail] = useState('');
-  const [coin, setCoin] = useState('TEST'); // Defaulting to TEST based on request
+  const [coin, setCoin] = useState('LTC');
   const [couponCode, setCouponCode] = useState('');
   const [discount, setDiscount] = useState<{ type: string, value: number } | null>(null);
   const [couponError, setCouponError] = useState('');
@@ -233,15 +233,7 @@ function CheckoutInner() {
 
               <div>
                 <label className="block text-xs font-bold text-white/50 uppercase tracking-widest mb-3">Payment Method</label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setCoin('TEST')}
-                    className={`flex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all ${coin === 'TEST' ? 'border-primary bg-primary/10 text-primary' : 'border-white/5 bg-[#141414] text-white/60 hover:bg-white/5'}`}
-                  >
-                    <CreditCard className="w-5 h-5" />
-                    <span className="font-bold">Test Pay</span>
-                  </button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => setCoin('BTC')}
