@@ -14,6 +14,14 @@ const TYPE_OPTIONS = [
 
 type ProductType = (typeof TYPE_OPTIONS)[number]['value'];
 
+// The database stores legacy type names (KEY/FILE/SERVICE, enforced by a CHECK
+// constraint). The UI presents friendlier categories and maps on save:
+//   Accounts -> KEY (unique account pool)
+//   Text     -> FILE without a file (static content delivered to every buyer)
+//   File     -> FILE with an uploaded file (download link)
+//   Links    -> SERVICE (static links delivered to every buyer)
+const UI_TO_DB: Record<ProductType, string> = { ACCOUNTS: 'KEY', TEXT: 'FILE', FILE: 'FILE', LINKS: 'SERVICE' };
+
 function ProductForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -63,14 +71,14 @@ function ProductForm() {
         return res.json();
       })
       .then((p) => {
-        const legacyType = p.type === 'KEY' ? 'ACCOUNTS' : p.type === 'SERVICE' ? 'TEXT' : p.type;
+        const uiType = p.type === 'FILE' ? (p.filePath ? 'FILE' : 'TEXT') : p.type === 'SERVICE' ? 'LINKS' : 'ACCOUNTS';
         setFormData({
           name: p.name || '',
           slug: p.slug || '',
           shortDescription: p.shortDescription || '',
           description: p.description || '',
           price: p.price ?? 0,
-          type: (legacyType as ProductType) || 'ACCOUNTS',
+          type: uiType as ProductType,
           categoryId: p.categoryId || '',
           visibility: p.visibility || 'PUBLIC',
           minQuantity: p.minQuantity ?? 1,
@@ -150,8 +158,9 @@ function ProductForm() {
     setSaving(true);
     setError('');
     try {
-      // FILE products are always unlimited
-      const payload = { ...formData, stock: formData.type === 'FILE' ? -1 : formData.stock };
+      // Map the UI category to the DB type before saving
+      const dbType = UI_TO_DB[formData.type] || 'KEY';
+      const payload = { ...formData, type: dbType, stock: formData.type === 'FILE' ? -1 : formData.stock };
 
       const res = await fetch(editId ? `/api/products/${editId}` : '/api/products', {
         method: editId ? 'PUT' : 'POST',
