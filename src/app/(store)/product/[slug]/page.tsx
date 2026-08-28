@@ -60,7 +60,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
               <div className="absolute bottom-6 left-6 right-6">
                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-white font-bold text-sm">
                   <Tag className="w-4 h-4 text-primary" />
-                  {TYPE_LABELS[product.type] || product.type}
+                  {product.type === 'SERVICE' ? 'Links' : product.type === 'FILE' ? (product.filePath ? 'File' : 'Text') : 'Accounts'}
                 </div>
               </div>
             </div>

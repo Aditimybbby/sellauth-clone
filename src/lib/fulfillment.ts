@@ -46,7 +46,7 @@ export async function fulfillInvoice(invoiceId: string, txHash?: string, confirm
     const staticContent = (product.deliveredContent || '').trim();
     const type = product.type;
 
-    if (type === 'ACCOUNTS' || type === 'KEY') {
+    if (type === 'KEY') {
       const availableKeys = await db.query.licenseKeys.findMany({
         where: (keys, { and, eq }) => and(eq(keys.productId, product.id), eq(keys.isUsed, false)),
         limit: order.quantity,

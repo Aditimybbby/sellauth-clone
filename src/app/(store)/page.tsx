@@ -6,14 +6,11 @@ import { Search, Star, PackageOpen } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
-const TYPE_BADGE: Record<string, { color: string; label: string }> = {
-  ACCOUNTS: { color: '#2563eb', label: 'Accounts' },
-  TEXT: { color: '#7c3aed', label: 'Text' },
-  FILE: { color: '#059669', label: 'File' },
-  LINKS: { color: '#d97706', label: 'Links' },
-  KEY: { color: '#2563eb', label: 'Accounts' },
-  SERVICE: { color: '#0ea5e9', label: 'Service' },
-};
+function typeBadge(type: string, filePath?: string | null) {
+  if (type === 'SERVICE') return { color: '#0ea5e9', label: 'Links' };
+  if (type === 'FILE') return filePath ? { color: '#059669', label: 'File' } : { color: '#7c3aed', label: 'Text' };
+  return { color: '#2563eb', label: 'Accounts' };
+}
 
 const SORT_OPTIONS = [
   { key: 'newest', label: 'Newest' },
@@ -252,8 +249,8 @@ export default async function StorePage({
                       )}
 
                       <div className="product-badges">
-                        <div className="product-badge" style={{ backgroundColor: TYPE_BADGE[product.type]?.color || '#2563eb' }}>
-                          <span>{TYPE_BADGE[product.type]?.label || product.type}</span>
+                        <div className="product-badge" style={{ backgroundColor: typeBadge(product.type, product.filePath).color }}>
+                          <span>{typeBadge(product.type, product.filePath).label}</span>
                         </div>
                       </div>
 

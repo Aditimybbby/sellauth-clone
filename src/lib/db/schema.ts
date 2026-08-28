@@ -11,7 +11,7 @@ export const products = sqliteTable('products', {
   description: text('description').default(''),
   shortDescription: text('short_description').default(''),
   price: real('price').notNull().default(0),
-  type: text('type', { enum: ['ACCOUNTS', 'TEXT', 'FILE', 'LINKS', 'KEY', 'SERVICE'] }).notNull().default('ACCOUNTS'),
+  type: text('type', { enum: ['KEY', 'FILE', 'SERVICE'] }).notNull().default('KEY'),
   imageUrl: text('image_url'),
   filePath: text('file_path'),
   deliveredContent: text('delivered_content').default(''),

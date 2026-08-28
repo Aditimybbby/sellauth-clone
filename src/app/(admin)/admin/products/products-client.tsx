@@ -98,7 +98,7 @@ export default function ProductsClient({ products }: { products: any[] }) {
                   <td className="p-4 font-medium">{product.name}</td>
                   <td className="p-4">
                     <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold">
-                      {TYPE_LABELS[product.type] || product.type}
+                      {product.type === 'SERVICE' ? 'Links' : product.type === 'FILE' ? (product.filePath ? 'File' : 'Text') : 'Accounts'}
                     </span>
                   </td>
                   <td className="p-4">${(product.price).toFixed(2)}</td>
