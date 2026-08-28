@@ -1,4 +1,7 @@
 import { db } from '@/lib/db';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 import { runMigrations } from '@/lib/db/migrate';
 import { products, orders, invoices, customers } from '@/lib/db/schema';
 import { desc, sql, eq, lt, and, gte } from 'drizzle-orm';
@@ -14,6 +17,10 @@ try { await runMigrations(); } catch {}
 export const dynamic = 'force-dynamic';
 
 export default async function AdminDashboardPage() {
+  // Server-side auth check (the layout only guards client-side)
+  const session = await getServerSession(authOptions);
+  if (!session) redirect('/admin/login');
+
   // Stats
   const totalRevenue = await db
     .select({ total: sql<number>`COALESCE(SUM(${invoices.totalAmount}), 0)` })
