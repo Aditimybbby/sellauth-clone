@@ -15,17 +15,28 @@ const COIN_IDS: Record<string, string> = {
   doge: 'dogecoin',
 };
 
+// Rough estimates, only used if the price API is unreachable.
+const FALLBACK_PRICES: Record<string, number> = {
+  btc: 65000,
+  ltc: 80,
+  eth: 3500,
+  doge: 0.12,
+};
+
 export async function getCryptoPrice(coin: string): Promise<number> {
-  // Mock payment currency — 1:1 with USD so invoice totals stay readable.
-  if (coin.toLowerCase() === 'test') return 1;
+  // The checkout sends coin codes in uppercase ('BTC' / 'LTC'), so normalise
+  // before every lookup — otherwise the maps miss and the rate falls back to 1,
+  // which generated invoices like "$0.10 => 0.1 LTC".
+  const key = (coin || '').trim().toLowerCase();
+  if (!key || key === 'test') return 1;
 
   const now = Date.now();
-  if (cache && now - cache.timestamp < CACHE_TTL && cache.prices[coin]) {
-    return cache.prices[coin];
+  if (cache && now - cache.timestamp < CACHE_TTL && cache.prices[key]) {
+    return cache.prices[key];
   }
 
   try {
-    const coinId = COIN_IDS[coin] || coin;
+    const coinId = COIN_IDS[key] || key;
     const response = await axios.get(
       `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd`,
       { timeout: 5000 }
@@ -34,7 +45,7 @@ export async function getCryptoPrice(coin: string): Promise<number> {
     const price = response.data[coinId]?.usd;
     if (price) {
       if (!cache) cache = { prices: {}, timestamp: now };
-      cache.prices[coin] = price;
+      cache.prices[key] = price;
       cache.timestamp = now;
       return price;
     }
@@ -42,14 +53,7 @@ export async function getCryptoPrice(coin: string): Promise<number> {
     console.error('Failed to fetch crypto price:', error);
   }
 
-  // Fallback prices (rough estimates, only used if API fails)
-  const fallbacks: Record<string, number> = {
-    btc: 65000,
-    ltc: 80,
-    eth: 3500,
-    doge: 0.12,
-  };
-  return fallbacks[coin] || 1;
+  return FALLBACK_PRICES[key] || 1;
 }
 
 export function usdToCrypto(usdAmount: number, cryptoPrice: number): string {

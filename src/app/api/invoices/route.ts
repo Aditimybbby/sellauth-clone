@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { invoices, orders, customers, products, coupons } from '@/lib/db/schema';
+import { invoices, orders, customers, products, coupons, settings } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { runMigrations } from '@/lib/db/migrate';
 import { convertUsdToCrypto } from '@/lib/crypto-pricing';
 import { isBlacklisted, checkRateLimit } from '@/lib/fraud';
+import { createPaymentForwarder } from '@/lib/payments/blockcypher';
 import { nanoid } from 'nanoid';
 
 try { await runMigrations(); } catch {}
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
     // 2. Validate products and calculate subtotal
     let totalAmount = 0;
     const validatedItems = [];
-    
+
     for (const item of items) {
       const product = await db.query.products.findFirst({
         where: eq(products.id, item.productId),
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest) {
       if (product.stock < item.quantity && product.stock !== -1) {
         return NextResponse.json({ error: `Insufficient stock for ${product.name}` }, { status: 400 });
       }
-      
+
       const itemTotal = product.price * item.quantity;
       totalAmount += itemTotal;
       validatedItems.push({ product, quantity: item.quantity, itemTotal });
@@ -85,7 +86,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 4. Convert to crypto
+    // 4. Convert to crypto (coin case is normalised inside; 'TEST' stays 1:1)
     let cryptoAmount = '0';
     let rate = 0;
     try {
@@ -109,17 +110,60 @@ export async function POST(req: NextRequest) {
       customer = newCustomer;
     }
 
-    // 6. Create invoice
-    const paymentAddress = process.env.CRYPTO_DESTINATION_ADDRESS || '';
-    const expiresAt = new Date(Date.now() + 30 * 60000).toISOString();
+    // 6. Reserve the invoice id up-front so the BlockCypher forwarding
+    //    callback can embed it before the invoice row exists.
+    const invoiceId = nanoid(16);
+    const lowerCoin = (coin || '').toLowerCase();
 
+    // 7. Payment address: when a BlockCypher token and destination wallet are
+    //    configured, generate a per-invoice forwarding address. Destination is
+    //    resolved per-coin from Settings (btc_address / ltc_address) because a
+    //    forwarding destination must live on the same chain as the invoice's
+    //    coin; otherwise fall back to the static CRYPTO_DESTINATION_ADDRESS.
+    let paymentAddress = '';
+    const destSetting = await db.query.settings.findFirst({
+      where: eq(settings.key, lowerCoin + '_address'),
+    });
+    if (destSetting?.value) paymentAddress = destSetting.value;
+    if (!paymentAddress) paymentAddress = process.env.CRYPTO_DESTINATION_ADDRESS || '';
+    let forwarderId: string | null = null;
+    if (
+      paymentAddress &&
+      process.env.BLOCKCYPHER_TOKEN &&
+      (lowerCoin === 'btc' || lowerCoin === 'ltc' || lowerCoin === 'doge')
+    ) {
+      try {
+        const forwarder = await createPaymentForwarder(
+          lowerCoin as 'btc' | 'ltc' | 'doge',
+          paymentAddress,
+          invoiceId,
+          process.env.CRYPTO_WEBHOOK_SECRET || ''
+        );
+        paymentAddress = forwarder.input_address;
+        forwarderId = forwarder.id;
+      } catch (err) {
+        // Forwarding is best-effort; the static address still works for manual payments.
+        console.error('BlockCypher forwarder creation failed, using static address:', err);
+      }
+    }
+
+    // 8. Expiry from settings (invoice_timeout_minutes, clamped 5..120)
+    const timeoutSetting = await db.query.settings.findFirst({
+      where: eq(settings.key, 'invoice_timeout_minutes'),
+    });
+    const timeoutMinutes = Math.min(120, Math.max(5, parseInt(timeoutSetting?.value || '30', 10) || 30));
+    const expiresAt = new Date(Date.now() + timeoutMinutes * 60000).toISOString();
+
+    // 9. Create invoice
     const [newInvoice] = await db.insert(invoices).values({
+      id: invoiceId,
       customerEmail: email,
       customerId: customer.id,
       totalAmount,
       cryptoAmount,
       cryptoCurrency: coin,
       paymentAddress,
+      forwarderId,
       status: 'PENDING',
       couponId,
       discountAmount,
@@ -128,7 +172,7 @@ export async function POST(req: NextRequest) {
       updatedAt: new Date().toISOString(),
     }).returning();
 
-    // 7. Create orders
+    // 10. Create orders
     for (const item of validatedItems) {
       await db.insert(orders).values({
         invoiceId: newInvoice.id,
@@ -141,6 +185,16 @@ export async function POST(req: NextRequest) {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
+    }
+
+    // 11. Count coupon usage so maxUses is enforced
+    if (couponId) {
+      const coupon = await db.query.coupons.findFirst({ where: eq(coupons.id, couponId) });
+      if (coupon) {
+        await db.update(coupons)
+          .set({ usedCount: coupon.usedCount + 1 })
+          .where(eq(coupons.id, couponId));
+      }
     }
 
     return NextResponse.json({

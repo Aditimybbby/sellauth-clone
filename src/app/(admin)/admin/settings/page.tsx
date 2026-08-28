@@ -53,12 +53,12 @@ export default function SettingsPage() {
   useEffect(() => {
     fetch('/api/settings')
       .then(res => (res.ok ? res.json() : {}))
-      .then(data => {
+      .then((data: Record<string, unknown>) => {
         if (data && typeof data === 'object') {
           setFormData(prev => {
             const next = { ...prev };
             for (const key of FORM_KEYS) {
-              if (typeof data[key] === 'string' && data[key] !== '') next[key] = data[key];
+              if (typeof data[key] === 'string' && (data[key] as string) !== '') next[key] = data[key] as string;
             }
             return next;
           });
