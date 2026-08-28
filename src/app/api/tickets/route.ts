@@ -3,12 +3,18 @@ import { db } from '@/lib/db';
 import { tickets, customers, ticketMessages } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { cookies } from 'next/headers';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const isAdmin = url.searchParams.get('admin') === 'true';
 
   if (isAdmin) {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     const allTickets = await db.query.tickets.findMany({
       with: {
         customer: true
@@ -21,7 +27,7 @@ export async function GET(request: Request) {
   // Customer view
   const cookieStore = await cookies();
   const session = cookieStore.get('customer_session');
-  
+
   if (session?.value) {
     const customer = await db.query.customers.findFirst({
       where: eq(customers.email, session.value)

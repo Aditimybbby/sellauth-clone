@@ -16,6 +16,9 @@ const COIN_IDS: Record<string, string> = {
 };
 
 export async function getCryptoPrice(coin: string): Promise<number> {
+  // Mock payment currency — 1:1 with USD so invoice totals stay readable.
+  if (coin.toLowerCase() === 'test') return 1;
+
   const now = Date.now();
   if (cache && now - cache.timestamp < CACHE_TTL && cache.prices[coin]) {
     return cache.prices[coin];

@@ -8,13 +8,13 @@ export default function OrdersClient({ orders }: { orders: any[] }) {
   const [statusFilter, setStatusFilter] = useState('ALL');
 
   const filteredOrders = orders.filter((order) => {
-    const matchesSearch = 
+    const matchesSearch =
       order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (order.customer?.email && order.customer.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (order.product?.name && order.product.name.toLowerCase().includes(searchQuery.toLowerCase()));
-      
+
     const matchesStatus = statusFilter === 'ALL' || order.status === statusFilter;
-    
+
     return matchesSearch && matchesStatus;
   });
 
@@ -36,7 +36,8 @@ export default function OrdersClient({ orders }: { orders: any[] }) {
           />
         </div>
         <div className="flex items-center gap-2">
-          <select 
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <select
             className="rounded-md border bg-transparent px-3 py-2 text-sm h-[42px]"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -45,15 +46,16 @@ export default function OrdersClient({ orders }: { orders: any[] }) {
             <option value="PENDING">Pending</option>
             <option value="FULFILLED">Fulfilled</option>
             <option value="REFUNDED">Refunded</option>
+            <option value="CANCELLED">Cancelled</option>
           </select>
         </div>
       </div>
 
-      <div className="rounded-md border">
+      <div className="rounded-md border overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50 text-left text-muted-foreground">
-              <th className="p-4 font-medium">Invoice ID</th>
+              <th className="p-4 font-medium">Order ID</th>
               <th className="p-4 font-medium">Customer Email</th>
               <th className="p-4 font-medium">Product</th>
               <th className="p-4 font-medium">Qty</th>
@@ -71,16 +73,16 @@ export default function OrdersClient({ orders }: { orders: any[] }) {
               </tr>
             ) : (
               filteredOrders.map((order) => (
-                <tr key={order.id} className="border-b last:border-0 hover:bg-muted/50 cursor-pointer">
+                <tr key={order.id} className="border-b last:border-0 hover:bg-muted/50">
                   <td className="p-4 font-mono text-xs">{order.id.substring(0, 8)}...</td>
                   <td className="p-4">{order.customer?.email || 'N/A'}</td>
                   <td className="p-4">{order.product?.name || 'Unknown'}</td>
                   <td className="p-4">{order.quantity || 1}</td>
-                  <td className="p-4">${(order.totalAmount || 0).toFixed(2)}</td>
+                  <td className="p-4">${(order.totalPrice ?? 0).toFixed(2)}</td>
                   <td className="p-4">
                     <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold
-                      ${order.status === 'FULFILLED' ? 'border-green-500 text-green-500' : 
-                        order.status === 'PENDING' ? 'border-yellow-500 text-yellow-500' : 
+                      ${order.status === 'FULFILLED' ? 'border-green-500 text-green-500' :
+                        order.status === 'PENDING' ? 'border-yellow-500 text-yellow-500' :
                         'border-red-500 text-red-500'}`}>
                       {order.status}
                     </span>

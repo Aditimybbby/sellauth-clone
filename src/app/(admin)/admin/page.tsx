@@ -1,7 +1,7 @@
 import { db } from '@/lib/db';
 import { runMigrations } from '@/lib/db/migrate';
 import { products, orders, invoices, customers } from '@/lib/db/schema';
-import { desc, sql, eq, lt } from 'drizzle-orm';
+import { desc, sql, eq, lt, and, gte } from 'drizzle-orm';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { DollarSign, ShoppingCart, Users, Package, AlertTriangle } from 'lucide-react';
@@ -39,9 +39,9 @@ export default async function AdminDashboardPage() {
     limit: 10,
   });
 
-  // Low stock
+  // Low stock (unlimited-stock products are marked -1 and never run out)
   const lowStock = await db.query.products.findMany({
-    where: lt(products.stock, 10),
+    where: and(gte(products.stock, 0), lt(products.stock, 10)),
     orderBy: [products.stock],
   });
 
@@ -165,7 +165,7 @@ export default async function AdminDashboardPage() {
                 {lowStock.map((product: any) => (
                   <Link
                     key={product.id}
-                    href={`/admin/products?edit=${product.id}`}
+                    href={`/admin/products/new?edit=${product.id}`}
                     className="flex items-center justify-between p-3 rounded-lg bg-accent/50 hover:bg-accent transition-colors"
                   >
                     <span className="text-sm font-medium">{product.name}</span>

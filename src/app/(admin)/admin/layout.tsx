@@ -4,7 +4,6 @@ import { useSession, signOut } from 'next-auth/react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
 import {
   LayoutDashboard,
   Package,
@@ -17,6 +16,7 @@ import {
   LogOut,
   Menu,
   X,
+  MessageSquare,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SessionProvider } from 'next-auth/react';
@@ -27,6 +27,7 @@ const navItems = [
   { href: '/admin/orders', label: 'Orders', icon: ShoppingCart },
   { href: '/admin/customers', label: 'Customers', icon: Users },
   { href: '/admin/coupons', label: 'Coupons', icon: Ticket },
+  { href: '/admin/tickets', label: 'Support Tickets', icon: MessageSquare },
   { href: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -73,7 +74,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
         <div className="flex items-center gap-2 px-6 py-5 border-b">
           <Store className="h-6 w-6 text-primary" />
           <span className="font-bold text-lg">SellAuth</span>
-          <button className="lg:hidden ml-auto" onClick={() => setSidebarOpen(false)}>
+          <button className="lg:hidden ml-auto" onClick={() => setSidebarOpen(false)} aria-label="Close sidebar">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -122,7 +123,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-h-screen">
         <header className="sticky top-0 z-30 flex items-center gap-4 border-b bg-background/95 backdrop-blur px-6 py-3 lg:hidden">
-          <button onClick={() => setSidebarOpen(true)}>
+          <button onClick={() => setSidebarOpen(true)} aria-label="Open sidebar">
             <Menu className="h-5 w-5" />
           </button>
           <span className="font-semibold">SellAuth</span>

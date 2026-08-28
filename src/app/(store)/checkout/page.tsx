@@ -1,21 +1,21 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Bitcoin, Loader2, ArrowRight, ShieldCheck, Tag, CreditCard } from 'lucide-react';
 import { useCartStore } from '@/lib/cart-store';
 
-export default function CheckoutPage() {
+function CheckoutInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const productId = searchParams.get('productId');
-  const initialQuantity = parseInt(searchParams.get('quantity') || '1');
+  const initialQuantity = parseInt(searchParams.get('quantity') || '1') || 1;
   const cart = useCartStore();
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [mounted, setMounted] = useState(false);
-  
+
   const [email, setEmail] = useState('');
   const [coin, setCoin] = useState('TEST'); // Defaulting to TEST based on request
   const [couponCode, setCouponCode] = useState('');
@@ -57,8 +57,9 @@ export default function CheckoutPage() {
         }
       }
     };
-    
+
     loadDirectProduct();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productId, mounted]);
 
   const validateCoupon = async () => {
@@ -85,7 +86,7 @@ export default function CheckoutPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
-    
+
     setSubmitting(true);
     setError('');
 
@@ -110,8 +111,8 @@ export default function CheckoutPage() {
 
       cart.clearCart();
       router.push(`/invoice/${data.invoiceId}`);
-    } catch (err: any) {
-      setError(err.message || 'Failed to create invoice. Please try again.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to create invoice. Please try again.');
       setSubmitting(false);
     }
   };
@@ -201,7 +202,7 @@ export default function CheckoutPage() {
                   className="w-full bg-[#141414] border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-primary/50 transition-colors"
                 />
               </div>
-              <button 
+              <button
                 type="button"
                 onClick={validateCoupon}
                 className="px-6 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl font-bold transition-colors"
@@ -216,7 +217,7 @@ export default function CheckoutPage() {
         <div>
           <form onSubmit={handleSubmit} className="bg-[#0a0a0a] border border-white/5 p-8 rounded-3xl shadow-xl sticky top-24">
             <h2 className="text-xl font-bold mb-6 text-white">Payment Details</h2>
-            
+
             <div className="space-y-6">
               <div>
                 <label className="block text-xs font-bold text-white/50 uppercase tracking-widest mb-3">Email Address</label>
@@ -232,7 +233,7 @@ export default function CheckoutPage() {
 
               <div>
                 <label className="block text-xs font-bold text-white/50 uppercase tracking-widest mb-3">Payment Method</label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <button
                     type="button"
                     onClick={() => setCoin('TEST')}
@@ -252,9 +253,9 @@ export default function CheckoutPage() {
                   <button
                     type="button"
                     onClick={() => setCoin('LTC')}
-                    className={`flex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all ${coin === 'LTC' ? 'border-[#345D9D] bg-[#345D9D]/10 text-[#345D9D]' : 'border-white/5 bg-[#141414] text-white/60 hover:bg-white/5'}`}
+                    className={`flex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all ${coin === 'LTC' ? 'border-[#345D9D] bg-[#345D9D]/10 text-[#7fa2e8]' : 'border-white/5 bg-[#141414] text-white/60 hover:bg-white/5'}`}
                   >
-                    <span className="font-bold">Ł</span>
+                    <span className="font-bold" aria-hidden="true">&#321;</span>
                     <span className="font-bold">Litecoin</span>
                   </button>
                 </div>
@@ -264,7 +265,7 @@ export default function CheckoutPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full py-5 rounded-xl font-bold text-lg bg-primary text-white shadow-[0_0_20px_rgba(var(--primary),0.4)] hover:bg-primary/90 hover:shadow-[0_0_25px_rgba(var(--primary),0.6)] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+                  className="w-full py-5 rounded-xl font-bold text-lg bg-primary text-white shadow-[0_0_20px_hsl(var(--primary)/0.35)] hover:bg-primary/90 hover:shadow-[0_0_25px_hsl(var(--primary)/0.5)] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
                 >
                   {submitting ? (
                     <>
@@ -289,5 +290,19 @@ export default function CheckoutPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      }
+    >
+      <CheckoutInner />
+    </Suspense>
   );
 }

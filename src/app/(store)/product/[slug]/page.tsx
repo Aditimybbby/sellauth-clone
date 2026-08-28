@@ -3,7 +3,7 @@ import { products } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRight, Star, AlertCircle, CheckCircle2, ShieldCheck, Box, Tag, ShoppingCart } from 'lucide-react';
+import { ChevronRight, Star, AlertCircle, CheckCircle2, ShieldCheck, Box, Tag } from 'lucide-react';
 import { AddToCartButton } from './add-to-cart-button';
 
 export const dynamic = 'force-dynamic';
@@ -27,7 +27,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const inStock = product.stock > 0;
   const isUnlimited = product.stock === -1;
   const availableStock = isUnlimited ? 999 : product.stock;
-  
+
   let avgRating = 0;
   if (product.reviews.length > 0) {
     avgRating = product.reviews.reduce((sum, r) => sum + r.rating, 0) / product.reviews.length;
@@ -47,7 +47,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         <span className="text-primary truncate">{product.name}</span>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1.2fr,1fr] gap-12">
+      <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-12">
         <div className="space-y-8">
           {product.imageUrl ? (
             <div className="rounded-3xl overflow-hidden border border-white/5 shadow-2xl relative aspect-[16/9] group">
@@ -62,7 +62,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             </div>
           ) : (
             <div className="rounded-3xl border border-white/5 shadow-2xl aspect-[16/9] bg-[#0a0a0a] flex items-center justify-center relative overflow-hidden group">
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/10 via-[#0a0a0a] to-[#0a0a0a]"></div>
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(99,102,241,0.10),#0a0a0a_70%)]"></div>
               <Box className="w-32 h-32 text-white/10 transition-transform duration-700 group-hover:scale-110" />
             </div>
           )}
@@ -70,7 +70,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           <div className="bg-[#0a0a0a] border border-white/5 rounded-3xl p-8 shadow-2xl">
             <h2 className="text-2xl font-bold mb-6 text-white border-b border-white/5 pb-4">Product Description</h2>
             {product.description ? (
-              <div className="prose prose-invert max-w-none text-white/70 leading-relaxed font-medium">
+              <div className="whitespace-pre-wrap break-words text-white/70 leading-relaxed font-medium">
                 {product.description}
               </div>
             ) : (
@@ -82,7 +82,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         <div>
           <div className="bg-[#0a0a0a] border border-white/5 rounded-3xl p-8 shadow-2xl sticky top-24">
             <h1 className="text-4xl font-black tracking-tight text-white mb-4 leading-tight">{product.name}</h1>
-            
+
             <div className="flex items-center gap-4 mb-8 pb-8 border-b border-white/5">
               <div className="flex gap-1 text-primary">
                 {[1, 2, 3, 4, 5].map((star) => (
@@ -121,15 +121,15 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
               </div>
             </div>
 
-            <AddToCartButton 
+            <AddToCartButton
               product={{
                 id: product.id,
                 name: product.name,
                 price: product.price,
                 stock: availableStock
               }}
-              inStock={inStock || isUnlimited} 
-              maxQuantity={availableStock} 
+              inStock={inStock || isUnlimited}
+              maxQuantity={availableStock}
               minQuantity={product.minQuantity || 1}
             />
 
@@ -140,7 +140,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           </div>
         </div>
       </div>
-      
+
       {/* Reviews Section */}
       {product.reviews.length > 0 && (
         <div className="mt-16 bg-[#0a0a0a] border border-white/5 rounded-3xl p-10 shadow-2xl">

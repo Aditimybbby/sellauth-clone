@@ -2,14 +2,14 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
 import { eq } from 'drizzle-orm';
-import { customers, orders, products, licenseKeys } from '@/lib/db/schema';
+import { customers, orders } from '@/lib/db/schema';
 import Link from 'next/link';
 import { Package, LogOut, Ticket as TicketIcon } from 'lucide-react';
 
 export default async function CustomerDashboard() {
   const cookieStore = await cookies();
   const session = cookieStore.get('customer_session');
-  
+
   if (!session?.value) {
     redirect('/customer/login');
   }
@@ -50,9 +50,9 @@ export default async function CustomerDashboard() {
             </div>
             <h2 className="text-xl font-bold text-white">Purchase History</h2>
           </div>
-          
+
           {customerOrders.length === 0 ? (
-            <p className="text-white/40">You haven't made any purchases yet.</p>
+            <p className="text-white/40">You haven&apos;t made any purchases yet.</p>
           ) : (
             <div className="space-y-4">
               {customerOrders.map(order => (
@@ -61,8 +61,8 @@ export default async function CustomerDashboard() {
                     <h3 className="font-semibold text-white">{order.product?.name || 'Unknown Product'}</h3>
                     <p className="text-sm text-white/50">{new Date(order.createdAt!).toLocaleDateString()}</p>
                   </div>
-                  <Link 
-                    href={/invoice/ + order.invoiceId} 
+                  <Link
+                    href={`/invoice/${order.invoiceId}`}
                     className="text-primary hover:underline text-sm font-bold"
                   >
                     View Invoice
@@ -80,11 +80,11 @@ export default async function CustomerDashboard() {
             </div>
             <h2 className="text-xl font-bold text-white">Support Tickets</h2>
           </div>
-          
+
           <div className="flex flex-col items-center justify-center py-10 bg-[#141414] border border-white/10 rounded-2xl text-center">
             <p className="text-white/40 mb-4">Need help with a purchase?</p>
-            <Link 
-              href="/customer/tickets" 
+            <Link
+              href="/customer/tickets"
               className="px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-xl transition-colors"
             >
               Go to Support Center

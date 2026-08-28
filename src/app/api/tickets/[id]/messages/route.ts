@@ -3,6 +3,8 @@ import { db } from '@/lib/db';
 import { ticketMessages, tickets } from '@/lib/db/schema';
 import { eq, asc } from 'drizzle-orm';
 import { cookies } from 'next/headers';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 export async function GET(
   request: Request,
@@ -27,6 +29,27 @@ export async function POST(
 
   if (!message) {
     return NextResponse.json({ error: 'Message is required' }, { status: 400 });
+  }
+
+  if (sender === 'ADMIN') {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+  } else {
+    // Customer messages must come from the ticket owner's session.
+    const cookieStore = await cookies();
+    const session = cookieStore.get('customer_session');
+    if (!session?.value) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const ticket = await db.query.tickets.findFirst({
+      where: eq(tickets.id, resolvedParams.id),
+      with: { customer: true },
+    });
+    if (!ticket || ticket.customer?.email?.toLowerCase() !== session.value.toLowerCase()) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
   }
 
   const result = await db.insert(ticketMessages).values({

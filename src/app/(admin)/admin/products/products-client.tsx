@@ -53,13 +53,13 @@ export default function ProductsClient({ products }: { products: any[] }) {
       </div>
 
       {filteredProducts.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center animate-in fade-in-50">
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
           <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted">
             <Package className="h-10 w-10 text-muted-foreground" />
           </div>
           <h2 className="mt-6 text-xl font-semibold">No products found</h2>
           <p className="mt-2 text-center text-sm font-normal leading-6 text-muted-foreground">
-            You don't have any products yet. Create your first one.
+            You don&apos;t have any products yet. Create your first one.
           </p>
           <Link
             href="/admin/products/new"
@@ -70,7 +70,7 @@ export default function ProductsClient({ products }: { products: any[] }) {
           </Link>
         </div>
       ) : (
-        <div className="rounded-md border">
+        <div className="rounded-md border overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/50 text-left text-muted-foreground">
@@ -93,20 +93,22 @@ export default function ProductsClient({ products }: { products: any[] }) {
                     </span>
                   </td>
                   <td className="p-4">${(product.price).toFixed(2)}</td>
-                  <td className="p-4">{product.stock !== null ? product.stock : '∞'}</td>
+                  <td className="p-4">{product.stock === -1 ? '∞' : product.stock}</td>
                   <td className="p-4">{product.visibility}</td>
                   <td className="p-4">{new Date(product.createdAt).toLocaleDateString()}</td>
                   <td className="p-4">
                     <div className="flex items-center justify-end gap-2">
                       <Link
-                        href={`/admin/products/${product.id}/edit`}
+                        href={`/admin/products/new?edit=${product.id}`}
                         className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        aria-label={`Edit ${product.name}`}
                       >
                         <Edit className="h-4 w-4" />
                       </Link>
                       <button
                         onClick={() => handleDelete(product.id)}
                         className="rounded-md p-2 text-muted-foreground hover:bg-destructive hover:text-destructive-foreground"
+                        aria-label={`Delete ${product.name}`}
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>

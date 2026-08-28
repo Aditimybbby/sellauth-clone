@@ -114,6 +114,24 @@ export async function runMigrations() {
       created_at TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS tickets (
+      id TEXT PRIMARY KEY,
+      customer_id TEXT NOT NULL REFERENCES customers(id),
+      order_id TEXT REFERENCES orders(id),
+      subject TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'OPEN' CHECK(status IN ('OPEN', 'CLOSED')),
+      created_at TEXT,
+      updated_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS ticket_messages (
+      id TEXT PRIMARY KEY,
+      ticket_id TEXT NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+      sender TEXT NOT NULL CHECK(sender IN ('CUSTOMER', 'ADMIN')),
+      message TEXT NOT NULL,
+      created_at TEXT
+    );
+
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL DEFAULT '',
@@ -130,6 +148,9 @@ export async function runMigrations() {
     { key: 'announcement', value: '' },
     { key: 'currency', value: 'USD' },
     { key: 'invoice_timeout_minutes', value: '30' },
+    { key: 'btc_address', value: '' },
+    { key: 'ltc_address', value: '' },
+    { key: 'blockcypher_token', value: '' },
   ];
 
   for (const s of defaultSettings) {

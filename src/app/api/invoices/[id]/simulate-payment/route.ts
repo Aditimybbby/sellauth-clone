@@ -14,7 +14,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     });
 
     if (!invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
-    
+
     if (invoice.status === 'COMPLETED') {
       return NextResponse.json({ success: true, message: 'Already completed' });
     }
@@ -50,39 +50,41 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           }
         } else if (product.stock === -1) {
           for (let i = 0; i < order.quantity; i++) {
-            const fakeKey = TEST- + nanoid(10).toUpperCase();
+            const fakeKey = 'TEST-' + nanoid(10).toUpperCase();
             keysToDeliver.push(fakeKey);
           }
         } else {
-           keysToDeliver.push("ERROR: Out of stock during fulfillment");
+          keysToDeliver.push('ERROR: Out of stock during fulfillment');
         }
-        
+
         deliveredContent = keysToDeliver.join('\n');
       } else if (product.type === 'FILE') {
-        deliveredContent = "Download Link: " + process.env.NEXT_PUBLIC_APP_URL + "/api/download/" + product.id;
+        deliveredContent = product.filePath
+          ? 'Download Link: ' + (process.env.NEXT_PUBLIC_APP_URL || '') + product.filePath
+          : 'File delivery: please contact support with your invoice ID to receive your file.';
       } else if (product.type === 'SERVICE') {
-        deliveredContent = "Service Details: Please contact support with your invoice ID to begin service.";
+        deliveredContent = 'Service Details: Please contact support with your invoice ID to begin service.';
       }
 
       await db.update(orders)
         .set({ status: 'FULFILLED', deliveredContent })
         .where(eq(orders.id, order.id));
-        
-      allDeliveredContent.push(`Product: ` + product.name + `\n` + deliveredContent);
-      
+
+      allDeliveredContent.push('Product: ' + product.name + '\n' + deliveredContent);
+
       if (product.stock > 0) {
         await db.update(products).set({ stock: Math.max(0, product.stock - order.quantity) }).where(eq(products.id, product.id));
       }
     }
 
     if (invoice.customerId) {
-       const customer = await db.query.customers.findFirst({ where: eq(customers.id, invoice.customerId) });
-       if (customer) {
-          await db.update(customers).set({ 
-             totalSpent: customer.totalSpent + invoice.totalAmount,
-             orderCount: customer.orderCount + 1 
-          }).where(eq(customers.id, customer.id));
-       }
+      const customer = await db.query.customers.findFirst({ where: eq(customers.id, invoice.customerId) });
+      if (customer) {
+        await db.update(customers).set({
+          totalSpent: customer.totalSpent + invoice.totalAmount,
+          orderCount: customer.orderCount + 1
+        }).where(eq(customers.id, customer.id));
+      }
     }
 
     return NextResponse.json({ success: true });
@@ -91,5 +93,3 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'Failed to simulate payment' }, { status: 500 });
   }
 }
-
-

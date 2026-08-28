@@ -1,15 +1,15 @@
 'use client';
 
 import { useEffect, useState, use } from 'react';
-import { Copy, CheckCircle2, Clock, XCircle, Loader2, Download, Star } from 'lucide-react';
+import { Copy, CheckCircle2, Clock, XCircle, Loader2, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 
 type InvoiceStatus = 'PENDING' | 'DETECTED' | 'CONFIRMING' | 'COMPLETED' | 'EXPIRED' | 'PARTIALLY_PAID';
 
 interface InvoiceData {
   id: string;
+  customerEmail?: string;
   totalAmount: number;
   cryptoAmount: string;
   cryptoCurrency: string;
@@ -17,12 +17,13 @@ interface InvoiceData {
   status: InvoiceStatus;
   confirmations: number;
   expiresAt: string;
-  deliveredContent?: string;
   txHash?: string;
   orders?: Array<{
-    product: { name: string; type: string };
+    id: string;
+    productId: string;
     quantity: number;
-    deliveredContent?: string;
+    deliveredContent?: string | null;
+    product?: { name: string; type: string } | null;
   }>;
 }
 
@@ -37,6 +38,9 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [showReview, setShowReview] = useState(false);
+  const [reviewState, setReviewState] = useState<'idle' | 'submitting' | 'done' | 'error'>('idle');
+  const [reviewError, setReviewError] = useState('');
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchInvoice() {
@@ -88,6 +92,35 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
     return () => clearInterval(interval);
   }, [invoice?.expiresAt, invoice?.status]);
 
+  // Generate a scannable payment QR for real crypto invoices.
+  useEffect(() => {
+    const addr = invoice?.paymentAddress;
+    const amount = invoice?.cryptoAmount;
+    const currency = invoice?.cryptoCurrency?.toLowerCase();
+    if (!invoice || invoice.status === 'COMPLETED' || !addr || !amount || !currency || currency === 'test') {
+      setQrDataUrl(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const mod = await import('qrcode');
+        const QRCode = (mod as { default?: typeof import('qrcode') }).default ?? mod;
+        const prefixes: Record<string, string> = { btc: 'bitcoin', ltc: 'litecoin' };
+        const uri = `${prefixes[currency] || currency}:${addr}?amount=${amount}`;
+        const url = await QRCode.toDataURL(uri, {
+          width: 220,
+          margin: 1,
+          color: { dark: '#000000', light: '#ffffff' },
+        });
+        if (!cancelled) setQrDataUrl(url);
+      } catch {
+        if (!cancelled) setQrDataUrl(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [invoice?.paymentAddress, invoice?.cryptoAmount, invoice?.cryptoCurrency, invoice?.status]);
+
   const copyToClipboard = async (text: string, type: 'address' | 'amount' | 'keys') => {
     await navigator.clipboard.writeText(text);
     setCopied(type);
@@ -101,20 +134,34 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
   };
 
   const submitReview = async () => {
-    if (!invoice?.orders?.[0]) return;
+    const firstOrder = invoice?.orders?.[0];
+    if (!firstOrder || !invoice?.customerEmail) return;
+    setReviewState('submitting');
+    setReviewError('');
     try {
-      await fetch('/api/reviews', {
+      const res = await fetch('/api/reviews', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          productId: invoice.orders[0].product?.name,
+          orderId: firstOrder.id,
+          productId: firstOrder.productId,
           rating: reviewRating,
           comment: reviewComment,
-          customerEmail: '',
+          customerEmail: invoice.customerEmail,
         }),
       });
-      setShowReview(false);
-    } catch {}
+      if (res.ok) {
+        setReviewState('done');
+        setShowReview(false);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setReviewError(data.error || 'Failed to submit review');
+        setReviewState('error');
+      }
+    } catch {
+      setReviewError('Failed to submit review');
+      setReviewState('error');
+    }
   };
 
   const handleMockPayment = async () => {
@@ -127,7 +174,7 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
         setInvoice(prev => prev ? { ...prev, status: 'COMPLETED' } : prev);
         const refetch = await fetch("/api/invoices/" + id);
         if (refetch.ok) {
-            setInvoice(await refetch.json());
+          setInvoice(await refetch.json());
         }
       }
     } catch (e) {
@@ -166,8 +213,8 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
         <div className="h-1 bg-gradient-to-r from-primary/50 to-primary w-full"></div>
         <CardHeader className="text-center pb-8 pt-10">
           <CardTitle className="text-3xl font-extrabold text-white">
-            {invoice.status === 'COMPLETED' ? 'Payment Successful' : 
-             invoice.status === 'EXPIRED' ? 'Invoice Expired' : 
+            {invoice.status === 'COMPLETED' ? 'Payment Successful' :
+             invoice.status === 'EXPIRED' ? 'Invoice Expired' :
              'Awaiting Payment'}
           </CardTitle>
           <p className="text-white/50 text-sm mt-2">
@@ -206,12 +253,20 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
               {invoice.cryptoCurrency.toUpperCase() === 'TEST' ? (
                 <div className="text-center space-y-4">
                   <p className="text-white/60 mb-6">This is a mock payment for testing purposes.</p>
-                  <Button onClick={handleMockPayment} className="w-full py-6 rounded-xl font-bold text-lg bg-primary hover:bg-primary/90 text-white shadow-[0_0_20px_rgba(var(--primary),0.4)]">
+                  <Button onClick={handleMockPayment} className="w-full py-6 rounded-xl font-bold text-lg bg-primary hover:bg-primary/90 text-white shadow-[0_0_20px_hsl(var(--primary)/0.35)]">
                     Simulate Payment
                   </Button>
                 </div>
               ) : (
                 <div className="space-y-6">
+                  {qrDataUrl && (
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="bg-white p-3 rounded-2xl">
+                        <img src={qrDataUrl} alt="Payment QR code" width={180} height={180} />
+                      </div>
+                      <p className="text-xs text-white/40 font-semibold uppercase tracking-widest">Scan to pay</p>
+                    </div>
+                  )}
                   <div>
                     <label className="text-xs font-bold text-white/50 uppercase tracking-widest block mb-3 text-center">Send Payment To</label>
                     <div className="flex items-center gap-2 bg-[#0a0a0a] p-4 rounded-xl border border-white/5">
@@ -224,7 +279,7 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
                     </div>
                     {copied === 'address' && <div className="text-center text-xs text-primary mt-2 font-bold">Copied!</div>}
                   </div>
-                  
+
                   <div className="flex items-center justify-center gap-3 text-white/60 bg-white/5 py-4 rounded-xl font-medium border border-white/5">
                     <Clock className="w-5 h-5 text-primary" />
                     Time remaining: <span className="text-white font-bold">{formatTime(timeLeft)}</span>
@@ -240,16 +295,17 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
                 <CheckCircle2 className="w-6 h-6 text-emerald-400" />
                 Delivered: {order.product?.name}
               </h3>
-              
+
               <div className="bg-[#0a0a0a] p-6 rounded-2xl border border-white/5 relative group">
                 <pre className="whitespace-pre-wrap font-mono text-sm text-emerald-400/90 break-all leading-relaxed">
                   {order.deliveredContent || 'No content delivered.'}
                 </pre>
-                
+
                 {order.deliveredContent && (
-                  <button 
+                  <button
                     onClick={() => copyToClipboard(order.deliveredContent!, 'keys')}
                     className="absolute top-4 right-4 p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                    aria-label="Copy delivered content"
                   >
                     <Copy className="w-5 h-5 text-white" />
                   </button>
@@ -259,7 +315,13 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
             </div>
           ))}
 
-          {invoice.status === 'COMPLETED' && !showReview && (
+          {invoice.status === 'COMPLETED' && reviewState === 'done' && (
+            <div className="text-center mt-8 text-emerald-400 font-bold bg-emerald-400/10 border border-emerald-400/20 py-4 rounded-2xl">
+              Thanks for your review!
+            </div>
+          )}
+
+          {invoice.status === 'COMPLETED' && reviewState !== 'done' && !showReview && (
             <div className="text-center mt-8">
               <Button onClick={() => setShowReview(true)} variant="outline" className="bg-transparent border-white/10 text-white hover:bg-white/5 rounded-xl font-bold py-6">
                 <Star className="w-5 h-5 mr-2" />
@@ -273,8 +335,8 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
               <h3 className="font-bold text-white mb-4">Rate Your Purchase</h3>
               <div className="flex gap-2 mb-4">
                 {[1, 2, 3, 4, 5].map((star) => (
-                  <button key={star} onClick={() => setReviewRating(star)}>
-                    <Star className={`w-8 h-8 ` + (star <= reviewRating ? 'fill-yellow-500 text-yellow-500' : 'text-white/20')} />
+                  <button key={star} onClick={() => setReviewRating(star)} aria-label={`Rate ${star} stars`}>
+                    <Star className={'w-8 h-8 ' + (star <= reviewRating ? 'fill-yellow-500 text-yellow-500' : 'text-white/20')} />
                   </button>
                 ))}
               </div>
@@ -284,8 +346,9 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
                 placeholder="Optional feedback..."
                 className="w-full bg-[#0a0a0a] border border-white/10 rounded-xl p-4 text-white focus:outline-none focus:border-primary/50 mb-4 h-24"
               />
-              <Button onClick={submitReview} className="w-full bg-primary hover:bg-primary/90 text-white font-bold">
-                Submit Review
+              {reviewError && <p className="text-red-400 text-sm mb-3">{reviewError}</p>}
+              <Button onClick={submitReview} disabled={reviewState === 'submitting'} className="w-full bg-primary hover:bg-primary/90 text-white font-bold">
+                {reviewState === 'submitting' ? 'Submitting...' : 'Submit Review'}
               </Button>
             </div>
           )}
@@ -294,5 +357,3 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
     </div>
   );
 }
-
-
