@@ -2,12 +2,13 @@ import { db } from '@/lib/db';
 import { invoices, orders, products, licenseKeys, customers } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
+import { sendFulfillmentEmail } from '@/lib/email';
 
 /**
  * Marks an invoice COMPLETED and delivers everything the customer bought:
  * assigns license keys, builds download links, decrements stock and updates
  * customer stats. Shared by the mock-payment endpoint and the BlockCypher
- * webhook so both payment paths fulfil identically.
+ * webhook / payment polling so every path fulfils identically.
  */
 export async function fulfillInvoice(invoiceId: string, txHash?: string, confirmations = 0) {
   const invoice = await db.query.invoices.findFirst({
@@ -34,6 +35,7 @@ export async function fulfillInvoice(invoiceId: string, txHash?: string, confirm
   });
 
   let deliveredItems = 0;
+  const delivered: { product: { name: string } | null; content: string }[] = [];
 
   for (const order of orderList) {
     const product = order.product;
@@ -79,6 +81,7 @@ export async function fulfillInvoice(invoiceId: string, txHash?: string, confirm
         .where(eq(products.id, product.id));
     }
 
+    delivered.push({ product: { name: product.name }, content: deliveredContent });
     deliveredItems++;
   }
 
@@ -95,6 +98,20 @@ export async function fulfillInvoice(invoiceId: string, txHash?: string, confirm
         .where(eq(customers.id, customer.id));
     }
   }
+
+  // Email the delivered keys / links to the customer (no-op when SMTP unset)
+  sendFulfillmentEmail(
+    {
+      id: invoice.id,
+      customerEmail: invoice.customerEmail,
+      totalAmount: invoice.totalAmount,
+      cryptoAmount: invoice.cryptoAmount,
+      cryptoCurrency: invoice.cryptoCurrency,
+      paymentAddress: invoice.paymentAddress,
+      expiresAt: invoice.expiresAt,
+    },
+    delivered
+  ).catch(() => {});
 
   return { alreadyCompleted: false, deliveredItems };
 }

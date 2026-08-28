@@ -139,6 +139,19 @@ export async function runMigrations() {
     );
   `);
 
+  // Column additions for existing databases (each statement runs separately so
+  // a "duplicate column" error on one never blocks the rest).
+  const alterations = [
+    'ALTER TABLE invoices ADD COLUMN baseline_balance REAL DEFAULT 0',
+  ];
+  for (const sql of alterations) {
+    try {
+      await client.execute(sql);
+    } catch {
+      // column already exists on this database — nothing to do
+    }
+  }
+
   // Insert default settings
   const defaultSettings = [
     { key: 'store_name', value: 'My Store' },

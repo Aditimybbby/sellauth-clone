@@ -63,6 +63,7 @@ export const invoices = sqliteTable('invoices', {
   status: text('status', { enum: ['PENDING', 'DETECTED', 'CONFIRMING', 'COMPLETED', 'EXPIRED', 'PARTIALLY_PAID', 'REFUNDED'] }).notNull().default('PENDING'),
   couponId: text('coupon_id').references(() => coupons.id),
   discountAmount: real('discount_amount').default(0),
+  baselineBalance: real('baseline_balance').default(0),
   expiresAt: text('expires_at'),
   paidAt: text('paid_at'),
   createdAt: text('created_at').$defaultFn(() => new Date().toISOString()),

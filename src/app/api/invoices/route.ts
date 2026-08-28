@@ -6,9 +6,13 @@ import { runMigrations } from '@/lib/db/migrate';
 import { convertUsdToCrypto } from '@/lib/crypto-pricing';
 import { isBlacklisted, checkRateLimit } from '@/lib/fraud';
 import { createPaymentForwarder } from '@/lib/payments/blockcypher';
+import { sendInvoiceEmail } from '@/lib/email';
 import { nanoid } from 'nanoid';
+import axios from 'axios';
 
 try { await runMigrations(); } catch {}
+
+const PLACEHOLDER_RE = /^your-/i;
 
 export async function POST(req: NextRequest) {
   try {
@@ -58,9 +62,7 @@ export async function POST(req: NextRequest) {
       if (coupon && coupon.isActive) {
         if (!coupon.expiresAt || new Date(coupon.expiresAt) > new Date()) {
           if (!coupon.maxUses || coupon.usedCount < coupon.maxUses) {
-            // Apply coupon logic
             if (coupon.productId) {
-              // Apply only to specific product
               const eligibleItem = validatedItems.find(i => i.product.id === coupon.productId);
               if (eligibleItem) {
                 if (coupon.discountType === 'PERCENTAGE') {
@@ -72,7 +74,6 @@ export async function POST(req: NextRequest) {
                 totalAmount -= discountAmount;
               }
             } else {
-              // Apply globally
               if (coupon.discountType === 'PERCENTAGE') {
                 discountAmount = totalAmount * (coupon.discountValue / 100);
               } else {
@@ -126,24 +127,42 @@ export async function POST(req: NextRequest) {
     });
     if (destSetting?.value) paymentAddress = destSetting.value;
     if (!paymentAddress) paymentAddress = process.env.CRYPTO_DESTINATION_ADDRESS || '';
+
     let forwarderId: string | null = null;
-    if (
-      paymentAddress &&
-      process.env.BLOCKCYPHER_TOKEN &&
-      (lowerCoin === 'btc' || lowerCoin === 'ltc' || lowerCoin === 'doge')
-    ) {
-      try {
-        const forwarder = await createPaymentForwarder(
-          lowerCoin as 'btc' | 'ltc' | 'doge',
-          paymentAddress,
-          invoiceId,
-          process.env.CRYPTO_WEBHOOK_SECRET || ''
-        );
+
+    if ((lowerCoin === 'btc' || lowerCoin === 'ltc' || lowerCoin === 'doge') && PLACEHOLDER_RE.test(paymentAddress || '')) {
+      return NextResponse.json(
+        { error: 'This store has no valid payment address configured yet. Please contact the store owner.' },
+        { status: 503 }
+      );
+    }
+
+    if (paymentAddress && process.env.BLOCKCYPHER_TOKEN) {
+      // BlockCypher's free tier rate-limits aggressively (HTTP 429), so retry
+      // with a short backoff before giving up and using the static address.
+      let forwarder: { input_address: string; id: string } | null = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          forwarder = await createPaymentForwarder(
+            lowerCoin as 'btc' | 'ltc' | 'doge',
+            paymentAddress,
+            invoiceId,
+            process.env.CRYPTO_WEBHOOK_SECRET || ''
+          );
+          break;
+        } catch (err: unknown) {
+          const status = (err as { response?: { status?: number } })?.response?.status;
+          console.error(`BlockCypher forwarder attempt ${attempt + 1} failed (status ${status ?? 'unknown'})`);
+          if (attempt < 2 && (status === 429 || (typeof status === 'number' && status >= 500))) {
+            await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
+          } else {
+            break;
+          }
+        }
+      }
+      if (forwarder) {
         paymentAddress = forwarder.input_address;
         forwarderId = forwarder.id;
-      } catch (err) {
-        // Forwarding is best-effort; the static address still works for manual payments.
-        console.error('BlockCypher forwarder creation failed, using static address:', err);
       }
     }
 
@@ -154,7 +173,22 @@ export async function POST(req: NextRequest) {
     const timeoutMinutes = Math.min(120, Math.max(5, parseInt(timeoutSetting?.value || '30', 10) || 30));
     const expiresAt = new Date(Date.now() + timeoutMinutes * 60000).toISOString();
 
-    // 9. Create invoice
+    // 9. Baseline for payment detection: for invoices WITHOUT a forwarder the
+    //    payment address is shared, so we remember how much it had already
+    //    received at creation time and watch for increases.
+    let baselineBalance = 0;
+    if (!forwarderId && paymentAddress && lowerCoin !== 'test' && (lowerCoin === 'btc' || lowerCoin === 'ltc' || lowerCoin === 'doge')) {
+      try {
+        const token = process.env.BLOCKCYPHER_TOKEN;
+        const url = `https://api.blockcypher.com/v1/${lowerCoin}/main/addrs/${paymentAddress}/balance${token ? `?token=${token}` : ''}`;
+        const balRes = await axios.get(url, { timeout: 8000 });
+        baselineBalance = Number(balRes.data?.total_received || 0);
+      } catch (err) {
+        console.error('Could not fetch address baseline (payment polling will use 0):', (err as Error).message);
+      }
+    }
+
+    // 10. Create invoice
     const [newInvoice] = await db.insert(invoices).values({
       id: invoiceId,
       customerEmail: email,
@@ -164,6 +198,7 @@ export async function POST(req: NextRequest) {
       cryptoCurrency: coin,
       paymentAddress,
       forwarderId,
+      baselineBalance,
       status: 'PENDING',
       couponId,
       discountAmount,
@@ -172,7 +207,7 @@ export async function POST(req: NextRequest) {
       updatedAt: new Date().toISOString(),
     }).returning();
 
-    // 10. Create orders
+    // 11. Create orders
     for (const item of validatedItems) {
       await db.insert(orders).values({
         invoiceId: newInvoice.id,
@@ -187,7 +222,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 11. Count coupon usage so maxUses is enforced
+    // 12. Count coupon usage so maxUses is enforced
     if (couponId) {
       const coupon = await db.query.coupons.findFirst({ where: eq(coupons.id, couponId) });
       if (coupon) {
@@ -196,6 +231,17 @@ export async function POST(req: NextRequest) {
           .where(eq(coupons.id, couponId));
       }
     }
+
+    // 13. Email the customer their payment instructions (no-op when SMTP is unset)
+    sendInvoiceEmail({
+      id: newInvoice.id,
+      customerEmail: newInvoice.customerEmail,
+      totalAmount: newInvoice.totalAmount,
+      cryptoAmount: newInvoice.cryptoAmount,
+      cryptoCurrency: newInvoice.cryptoCurrency,
+      paymentAddress: newInvoice.paymentAddress,
+      expiresAt: newInvoice.expiresAt,
+    }).catch(() => {});
 
     return NextResponse.json({
       invoiceId: newInvoice.id,
