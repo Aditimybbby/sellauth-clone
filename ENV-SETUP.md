@@ -79,6 +79,16 @@ Notes:
 
 ## 5. Email delivery of invoices and keys
 
+> **New:** SMTP can also be configured in the website itself — Admin → Settings → Email (SMTP).
+> Values entered there are stored in the database and take priority over the environment
+> variables below. A "Send test email" button verifies the setup.
+
+
+> **New:** SMTP can also be configured in the website itself — Admin → Settings → Email (SMTP).
+> Values entered there are stored in the database and take priority over the environment
+> variables below. A "Send test email" button verifies the setup.
+
+
 The store emails customers twice: when an invoice is created (payment
 instructions) and when payment is confirmed (the license keys / download
 links). Emails are sent only when SMTP is configured; otherwise the store

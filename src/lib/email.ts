@@ -3,14 +3,42 @@ import { db } from '@/lib/db';
 import { settings } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
-export function isEmailConfigured(): boolean {
-  return Boolean(
-    process.env.SMTP_HOST &&
-    process.env.SMTP_PORT &&
-    process.env.SMTP_USER &&
-    process.env.SMTP_PASS &&
-    process.env.EMAIL_FROM
-  );
+export interface SmtpConfig {
+  host: string;
+  port: number;
+  user: string;
+  pass: string;
+  from: string;
+  allowInvalidTls: boolean;
+}
+
+/**
+ * Resolves the SMTP configuration: the admin's database settings
+ * (Admin → Settings → Email) take priority, environment variables
+ * (SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS / EMAIL_FROM) are the
+ * fallback. Returns null when either source is incomplete.
+ */
+export async function getSmtpConfig(): Promise<SmtpConfig | null> {
+  const dbCfg: Record<string, string> = {};
+  try {
+    const rows = await db.select().from(settings);
+    for (const r of rows) dbCfg[r.key] = r.value;
+  } catch {
+    // settings table unavailable — env fallback only
+  }
+
+  const cfg: SmtpConfig = {
+    host: dbCfg.smtp_host || process.env.SMTP_HOST || '',
+    port: Number(dbCfg.smtp_port || process.env.SMTP_PORT || 587) || 587,
+    user: dbCfg.smtp_user || process.env.SMTP_USER || '',
+    pass: dbCfg.smtp_pass || process.env.SMTP_PASS || '',
+    from: dbCfg.email_from || process.env.EMAIL_FROM || '',
+    allowInvalidTls:
+      dbCfg.smtp_allow_invalid_tls === 'true' || process.env.SMTP_ALLOW_INVALID_CERT === 'true',
+  };
+
+  if (!cfg.host || !cfg.user || !cfg.pass || !cfg.from) return null;
+  return cfg;
 }
 
 async function getStoreName(): Promise<string> {
@@ -22,27 +50,25 @@ async function getStoreName(): Promise<string> {
   }
 }
 
-async function transporter() {
-  const port = Number(process.env.SMTP_PORT || 587);
+async function transporter(cfg: SmtpConfig) {
   return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port,
-    secure: port === 465,
-    auth: {
-      user: process.env.SMTP_USER as string,
-      pass: process.env.SMTP_PASS as string,
-    },
+    host: cfg.host,
+    port: cfg.port,
+    secure: cfg.port === 465,
+    auth: { user: cfg.user, pass: cfg.pass },
+    tls: { rejectUnauthorized: !cfg.allowInvalidTls },
   });
 }
 
 export async function sendMail(to: string, subject: string, html: string): Promise<boolean> {
-  if (!isEmailConfigured()) {
+  const cfg = await getSmtpConfig();
+  if (!cfg) {
     console.log('[email] SMTP not configured — skipping email to', to);
     return false;
   }
   try {
-    const t = await transporter();
-    await t.sendMail({ from: process.env.EMAIL_FROM as string, to, subject, html });
+    const t = await transporter(cfg);
+    await t.sendMail({ from: cfg.from, to, subject, html });
     console.log('[email] sent:', subject, '->', to);
     return true;
   } catch (err) {
