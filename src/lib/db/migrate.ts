@@ -164,6 +164,14 @@ export async function runMigrations() {
   if (hasOldCheck) {
     // A previous failed attempt can leave the temp table behind — drop it first.
     await client.execute('DROP TABLE IF EXISTS products_new');
+    // The rebuild drops `products` while orders/license_keys/reviews/coupons
+    // still reference it. With PRAGMA foreign_keys=ON (libsql default) the
+    // DROP performs an implicit FK check and fails on any referencing row,
+    // so enforcement must be suspended for the rebuild (SQLite-documented
+    // procedure) and re-enabled afterwards. PRAGMA foreign_keys is a no-op
+    // inside a transaction, hence standalone execute() calls — never inside
+    // executeMultiple().
+    await client.execute('PRAGMA foreign_keys=OFF');
     await client.execute(`CREATE TABLE products_new (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -192,6 +200,12 @@ export async function runMigrations() {
     await client.execute('ALTER TABLE products_new RENAME TO products');
     await client.execute("UPDATE products SET type='ACCOUNTS' WHERE type='KEY'");
     await client.execute("UPDATE products SET type='TEXT' WHERE type='SERVICE'");
+    // Verify the rebuild left no dangling references before re-enabling FKs.
+    const fkViolations = await client.execute('PRAGMA foreign_key_check');
+    await client.execute('PRAGMA foreign_keys=ON');
+    if (fkViolations.rows.length > 0) {
+      console.error('[migrate] WARNING: foreign_key_check reported violations after products rebuild');
+    }
     console.log('[migrate] products table rebuilt with flexible type column');
   }
 
