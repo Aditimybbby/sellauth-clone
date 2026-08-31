@@ -38,7 +38,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   }
 
   return (
-    <div className="py-8">
+    <div className="py-8 px-4 sm:px-6">
       <div className="flex items-center gap-2 text-sm text-white/40 mb-8 font-semibold uppercase tracking-widest">
         <Link href="/" className="hover:text-white transition-colors">Store</Link>
         <ChevronRight className="w-4 h-4" />
@@ -71,7 +71,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             </div>
           )}
 
-          <div className="bg-[#0a0a0a] border border-white/5 rounded-3xl p-8 shadow-2xl">
+          <div className="bg-[#0a0a0a] border border-white/5 rounded-3xl p-5 sm:p-8 shadow-2xl">
             <h2 className="text-2xl font-bold mb-6 text-white border-b border-white/5 pb-4">Product Description</h2>
             {product.description ? (
               <div className="whitespace-pre-wrap break-words text-white/70 leading-relaxed font-medium">
@@ -84,8 +84,8 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         </div>
 
         <div>
-          <div className="bg-[#0a0a0a] border border-white/5 rounded-3xl p-8 shadow-2xl sticky top-24">
-            <h1 className="text-4xl font-black tracking-tight text-white mb-4 leading-tight">{product.name}</h1>
+          <div className="bg-[#0a0a0a] border border-white/5 rounded-3xl p-5 sm:p-8 shadow-2xl sticky top-24">
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white mb-4 leading-tight break-words">{product.name}</h1>
 
             <div className="flex items-center gap-4 mb-8 pb-8 border-b border-white/5">
               <div className="flex gap-1 text-primary">
@@ -98,7 +98,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
             <div className="mb-8">
               <div className="text-sm font-bold text-white/40 uppercase tracking-widest mb-2">Price</div>
-              <div className="text-5xl font-black text-white flex items-center gap-4">
+              <div className="text-4xl sm:text-5xl font-black text-white flex items-center gap-4">
                 ${product.price.toFixed(2)}
               </div>
             </div>
@@ -147,7 +147,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
       {/* Reviews Section */}
       {product.reviews.length > 0 && (
-        <div className="mt-16 bg-[#0a0a0a] border border-white/5 rounded-3xl p-10 shadow-2xl">
+        <div className="mt-16 bg-[#0a0a0a] border border-white/5 rounded-3xl p-5 sm:p-10 shadow-2xl">
           <h2 className="text-2xl font-bold mb-8 text-white border-b border-white/5 pb-4">Customer Reviews</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {product.reviews.map((review) => (

@@ -222,7 +222,7 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
   const activeStep = isCompleted ? 2 : isDetected ? 1 : 0;
 
   return (
-    <div className="max-w-3xl mx-auto py-10">
+    <div className="max-w-3xl mx-auto py-10 px-4 sm:px-6">
       <Card className="bg-[#0a0a0a] border-white/5 shadow-2xl overflow-hidden rounded-3xl">
         <div className="h-1 bg-gradient-to-r from-primary/50 to-primary w-full"></div>
         <CardHeader className="text-center pb-6 pt-10">
@@ -233,11 +233,11 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
              'Awaiting Payment'}
           </CardTitle>
           <p className="text-white/50 text-sm mt-2">
-            Invoice ID: <span className="font-mono text-white/70">{invoice.id}</span>
+            Invoice ID: <span className="font-mono text-white/70 break-all">{invoice.id}</span>
           </p>
         </CardHeader>
 
-        <CardContent className="space-y-8 px-10 pb-10">
+        <CardContent className="space-y-8 px-4 sm:px-10 pb-10">
           {/* Payment progress stepper */}
           {!isExpired && (
             <div>
@@ -295,10 +295,10 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
               <p className="text-red-400/80">This invoice has expired. Please create a new order.</p>
             </div>
           ) : (
-            <div className="bg-[#141414] border border-white/10 p-8 rounded-3xl">
+            <div className="bg-[#141414] border border-white/10 p-5 sm:p-8 rounded-3xl">
               <div className="flex flex-col items-center text-center mb-8">
                 <div className="text-sm font-bold text-white/50 uppercase tracking-widest mb-3">Amount Due</div>
-                <div className="text-5xl font-black text-white flex items-center gap-3">
+                <div className="text-4xl sm:text-5xl font-black text-white flex items-center gap-3 break-all">
                   {invoice.cryptoCurrency.toUpperCase() === 'TEST' ? '$' + invoice.totalAmount.toFixed(2) : invoice.cryptoAmount + ' ' + invoice.cryptoCurrency.toUpperCase()}
                   {invoice.cryptoCurrency.toUpperCase() !== 'TEST' && (
                     <button onClick={() => copyToClipboard(invoice.cryptoAmount, 'amount')} className="p-2 hover:bg-white/10 rounded-xl transition-colors">
@@ -351,7 +351,7 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
           )}
 
           {isCompleted && invoice.orders?.map((order, idx) => (
-            <div key={idx} className="bg-[#141414] border border-emerald-500/30 p-8 rounded-3xl mt-8 shadow-xl">
+            <div key={idx} className="bg-[#141414] border border-emerald-500/30 p-5 sm:p-8 rounded-3xl mt-8 shadow-xl">
               <h3 className="text-xl font-bold mb-6 text-white flex items-center gap-3">
                 <CheckCircle2 className="w-6 h-6 text-emerald-400" />
                 Delivered: {order.product?.name}

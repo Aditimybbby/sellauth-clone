@@ -147,8 +147,8 @@ function CheckoutInner() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto py-10">
-      <h1 className="text-4xl font-extrabold mb-10 text-white tracking-tight">Checkout</h1>
+    <div className="max-w-4xl mx-auto py-10 px-4 sm:px-6">
+      <h1 className="text-3xl sm:text-4xl font-extrabold mb-10 text-white tracking-tight">Checkout</h1>
 
       {error && (
         <div className="mb-8 p-4 bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl font-medium">
@@ -158,7 +158,7 @@ function CheckoutInner() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
         <div>
-          <div className="bg-[#0a0a0a] border border-white/5 p-8 rounded-3xl shadow-xl mb-8">
+          <div className="bg-[#0a0a0a] border border-white/5 p-5 sm:p-8 rounded-3xl shadow-xl mb-8">
             <h2 className="text-xl font-bold mb-6 text-white">Order Summary</h2>
             <div className="space-y-4 mb-6">
               {cart.items.map(item => (
@@ -215,7 +215,7 @@ function CheckoutInner() {
         </div>
 
         <div>
-          <form onSubmit={handleSubmit} className="bg-[#0a0a0a] border border-white/5 p-8 rounded-3xl shadow-xl sticky top-24">
+          <form onSubmit={handleSubmit} className="bg-[#0a0a0a] border border-white/5 p-5 sm:p-8 rounded-3xl shadow-xl sticky top-24">
             <h2 className="text-xl font-bold mb-6 text-white">Payment Details</h2>
 
             <div className="space-y-6">
